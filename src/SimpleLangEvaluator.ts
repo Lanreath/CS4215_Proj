@@ -31,7 +31,16 @@ class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implem
     visitVariableDeclaration(ctx: VariableDeclarationContext): number {
         const variable = ctx.IDENTIFIER().getText();
         const value = this.visit(ctx.expression());
-        const mutable = ctx.getChild(1)?.getText() === 'mut';
+        
+        // Check if 'mut' is present
+        let mutable = false;
+        for (let i = 0; i < ctx.getChildCount(); i++) {
+            if (ctx.getChild(i).getText() === 'mut') {
+                mutable = true;
+                break;
+            }
+        }
+        
         this.variableStates.set(variable, new VariableState(BorrowState.Owned, value, mutable));
         return value;
     }
