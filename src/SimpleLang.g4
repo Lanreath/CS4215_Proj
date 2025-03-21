@@ -10,7 +10,7 @@ statement
     ;
 
 variableDeclaration
-    : ('const' | 'let') MUT? IDENTIFIER '=' expression ';'
+    : ('const' | 'let' 'mut'?) IDENTIFIER '=' expression ';'
     ;
 
 assignment
@@ -28,17 +28,12 @@ expressionStatement
 expression
     : '(' expression ')'
     | expression op=('*'|'/'|'+'|'-') expression
-    | '&' MUT? IDENTIFIER
+    | '&' 'mut'? IDENTIFIER
     | IDENTIFIER
     | INT
     ;
 
 IDENTIFIER: [a-zA-Z_][a-zA-Z_0-9]*;
 INT: [0-9]+;
-
-MUT: 'mut';
-CONST: 'const';
-LET: 'let';
-DISPLAY: 'display';
 
 WS: [ \t\r\n]+ -> skip;
