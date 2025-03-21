@@ -33,8 +33,6 @@ class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implem
         const value = this.visit(ctx.expression());
         const mutable = ctx.getChild(0).getText() === 'let';
         this.variableStates.set(variable, new VariableState(BorrowState.Owned, value, mutable));
-        // transfer ownership
-        this.borrowVariable(variable, mutable);
         return value;
     }
 
@@ -42,6 +40,21 @@ class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implem
     visitAssignment(ctx: AssignmentContext): number {
         const variable = ctx.IDENTIFIER().getText();
         const value = this.visit(ctx.expression());
+
+        // Check if the value is a variable and transfer ownership
+        if (ctx.expression().IDENTIFIER()) {
+            const sourceVariable = ctx.expression().IDENTIFIER().getText();
+            const sourceState = this.variableStates.get(sourceVariable);
+            if (!sourceState) {
+                throw new Error(`Variable ${sourceVariable} not declared`);
+            }
+            if (sourceState.state !== BorrowState.Owned) {
+                throw new Error(`Variable ${sourceVariable} is not owned and cannot be assigned`);
+            }
+            // Transfer ownership
+            this.variableStates.set(sourceVariable, new VariableState(BorrowState.BorrowedMutably, sourceState.value, sourceState.mutable));
+        }
+
         const state = this.variableStates.get(variable);
         if (state && !state.mutable) {
             throw new Error(`Variable ${variable} is not mutable`);
@@ -138,7 +151,7 @@ class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implem
         this.checkBorrowingRules(variable, newState);
         this.variableStates.set(variable, new VariableState(newState, this.variableStates.get(variable)?.value ?? 0, this.variableStates.get(variable)?.mutable ?? false));
     }
-
+    
     private returnVariable(variable: string): void {
         this.variableStates.set(variable, new VariableState(BorrowState.Owned, this.variableStates.get(variable)?.value ?? 0, this.variableStates.get(variable)?.mutable ?? false));
     }
