@@ -2,7 +2,7 @@ import { BasicEvaluator } from "conductor/dist/conductor/runner";
 import { IRunnerPlugin } from "conductor/dist/conductor/runner/types";
 import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
 import { SimpleLangLexer } from './parser/SimpleLangLexer';
-import { SimpleLangParser, ExpressionContext, ProgContext, VariableDeclarationContext, AssignmentContext, DisplayStatementContext } from './parser  /SimpleLangParser';
+import { SimpleLangParser, ExpressionContext, ProgContext, VariableDeclarationContext, AssignmentContext, DisplayStatementContext } from './parser/SimpleLangParser';
 import { SimpleLangVisitor } from './parser/SimpleLangVisitor';
 
 enum BorrowState {
