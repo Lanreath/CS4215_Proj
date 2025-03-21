@@ -97,21 +97,19 @@ class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implem
                 this.variableStates.set(variable, new VariableState(BorrowState.BorrowedMutably, state.value, state.mutable));
                 return state.value;
             }
-        } else if (ctx.getChildCount() === 2) {
-            if (ctx.getChild(0).getText() === '&') {
-                // Borrowing case
-                const mutable = ctx.getChild(1).getText() === 'mut';
-                const variable = ctx.getChild(mutable ? 2 : 1).getText();
-                const state = this.variableStates.get(variable);
-                if (!state) {
-                    throw new Error(`Variable ${variable} not declared`);
-                }
-                if (state.state !== BorrowState.Owned) {
-                    throw new Error(`Variable ${variable} is not owned and cannot be borrowed`);
-                }
-                this.borrowVariable(variable, mutable);
-                return state.value;
+        } else if (ctx.getChildCount() === 3 && ctx.getChild(0).getText() === '&') {
+            // Borrowing case
+            const mutable = ctx.getChild(1).getText() === 'mut';
+            const variable = ctx.getChild(mutable ? 2 : 1).getText();
+            const state = this.variableStates.get(variable);
+            if (!state) {
+                throw new Error(`Variable ${variable} not declared`);
             }
+            if (state.state !== BorrowState.Owned) {
+                throw new Error(`Variable ${variable} is not owned and cannot be borrowed`);
+            }
+            this.borrowVariable(variable, mutable);
+            return state.value;
         } else if (ctx.getChildCount() === 3) {
             if (ctx.getChild(0).getText() === '(' && ctx.getChild(2).getText() === ')') {
                 // Parenthesized expression
