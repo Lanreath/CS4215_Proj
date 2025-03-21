@@ -10,7 +10,7 @@ statement
     ;
 
 variableDeclaration
-    : 'const' IDENTIFIER '=' expression ';'
+    : ('const' | 'let') IDENTIFIER '=' expression ';'
     ;
 
 assignment
