@@ -8,6 +8,7 @@ import { StatementContext } from "./SimpleLangParser.js";
 import { VariableDeclarationContext } from "./SimpleLangParser.js";
 import { AssignmentContext } from "./SimpleLangParser.js";
 import { DisplayStatementContext } from "./SimpleLangParser.js";
+import { ExpressionStatementContext } from "./SimpleLangParser.js";
 import { ExpressionContext } from "./SimpleLangParser.js";
 
 
@@ -66,6 +67,16 @@ export class SimpleLangListener implements ParseTreeListener {
      * @param ctx the parse tree
      */
     exitDisplayStatement?: (ctx: DisplayStatementContext) => void;
+    /**
+     * Enter a parse tree produced by `SimpleLangParser.expressionStatement`.
+     * @param ctx the parse tree
+     */
+    enterExpressionStatement?: (ctx: ExpressionStatementContext) => void;
+    /**
+     * Exit a parse tree produced by `SimpleLangParser.expressionStatement`.
+     * @param ctx the parse tree
+     */
+    exitExpressionStatement?: (ctx: ExpressionStatementContext) => void;
     /**
      * Enter a parse tree produced by `SimpleLangParser.expression`.
      * @param ctx the parse tree
