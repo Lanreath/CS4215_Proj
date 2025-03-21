@@ -74,6 +74,8 @@ class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implem
                 if (state.state !== BorrowState.Owned) {
                     throw new Error(`Variable ${variable} is not owned and cannot be used`);
                 }
+                // Transfer ownership
+                this.variableStates.set(variable, new VariableState(BorrowState.BorrowedMutably, state.value));
                 return state.value;
             }
         } else if (ctx.getChildCount() === 3) {
