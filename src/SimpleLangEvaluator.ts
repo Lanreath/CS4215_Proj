@@ -12,7 +12,7 @@ enum BorrowState {
 }
 
 class VariableState {
-    constructor(public state: BorrowState, public value: number, public mutable: boolean) {}
+    constructor(public state: BorrowState, public value: number) {}
 }
 
 class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements SimpleLangVisitor<number> {
@@ -31,8 +31,7 @@ class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implem
     visitVariableDeclaration(ctx: VariableDeclarationContext): number {
         const variable = ctx.IDENTIFIER().getText();
         const value = this.visit(ctx.expression());
-        const mutable = ctx.getChild(0).getText() === 'let';
-        this.variableStates.set(variable, new VariableState(BorrowState.Owned, value, mutable));
+        this.variableStates.set(variable, new VariableState(BorrowState.Owned, value));
         return value;
     }
 
@@ -41,11 +40,7 @@ class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implem
         const variable = ctx.IDENTIFIER().getText();
         const value = this.visit(ctx.expression());
         this.checkBorrowingRules(variable, BorrowState.Owned);
-        const state = this.variableStates.get(variable);
-        if (!state || !state.mutable) {
-            throw new Error(`Variable ${variable} is not mutable`);
-        }
-        this.variableStates.set(variable, new VariableState(BorrowState.Owned, value, state.mutable));
+        this.variableStates.set(variable, new VariableState(BorrowState.Owned, value));
         return value;
     }
 
@@ -79,6 +74,8 @@ class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implem
                 if (state.state !== BorrowState.Owned) {
                     throw new Error(`Variable ${variable} is not owned and cannot be used`);
                 }
+                // Transfer ownership
+                this.variableStates.set(variable, new VariableState(BorrowState.BorrowedMutably, state.value));
                 return state.value;
             }
         } else if (ctx.getChildCount() === 3) {
@@ -133,11 +130,11 @@ class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implem
     private borrowVariable(variable: string, mutable: boolean): void {
         const newState = mutable ? BorrowState.BorrowedMutably : BorrowState.BorrowedImmutably;
         this.checkBorrowingRules(variable, newState);
-        this.variableStates.set(variable, new VariableState(newState, this.variableStates.get(variable)?.value ?? 0, this.variableStates.get(variable)?.mutable ?? false));
+        this.variableStates.set(variable, new VariableState(newState, this.variableStates.get(variable)?.value ?? 0));
     }
 
     private returnVariable(variable: string): void {
-        this.variableStates.set(variable, new VariableState(BorrowState.Owned, this.variableStates.get(variable)?.value ?? 0, this.variableStates.get(variable)?.mutable ?? false));
+        this.variableStates.set(variable, new VariableState(BorrowState.Owned, this.variableStates.get(variable)?.value ?? 0));
     }
 }
 
