@@ -7,7 +7,7 @@ import { ProgContext } from "./SimpleLangParser.js";
 import { StatementContext } from "./SimpleLangParser.js";
 import { VariableDeclarationContext } from "./SimpleLangParser.js";
 import { AssignmentContext } from "./SimpleLangParser.js";
-import { PrintStatementContext } from "./SimpleLangParser.js";
+import { DisplayStatementContext } from "./SimpleLangParser.js";
 import { ExpressionContext } from "./SimpleLangParser.js";
 
 
@@ -57,15 +57,15 @@ export class SimpleLangListener implements ParseTreeListener {
      */
     exitAssignment?: (ctx: AssignmentContext) => void;
     /**
-     * Enter a parse tree produced by `SimpleLangParser.printStatement`.
+     * Enter a parse tree produced by `SimpleLangParser.displayStatement`.
      * @param ctx the parse tree
      */
-    enterPrintStatement?: (ctx: PrintStatementContext) => void;
+    enterDisplayStatement?: (ctx: DisplayStatementContext) => void;
     /**
-     * Exit a parse tree produced by `SimpleLangParser.printStatement`.
+     * Exit a parse tree produced by `SimpleLangParser.displayStatement`.
      * @param ctx the parse tree
      */
-    exitPrintStatement?: (ctx: PrintStatementContext) => void;
+    exitDisplayStatement?: (ctx: DisplayStatementContext) => void;
     /**
      * Enter a parse tree produced by `SimpleLangParser.expression`.
      * @param ctx the parse tree

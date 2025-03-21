@@ -29,12 +29,12 @@ export class SimpleLangParser extends antlr.Parser {
     public static readonly RULE_statement = 1;
     public static readonly RULE_variableDeclaration = 2;
     public static readonly RULE_assignment = 3;
-    public static readonly RULE_printStatement = 4;
+    public static readonly RULE_displayStatement = 4;
     public static readonly RULE_expression = 5;
 
     public static readonly literalNames = [
-        null, "'const'", "'='", "';'", "'print'", "'('", "')'", "'*'", "'/'", 
-        "'+'", "'-'"
+        null, "'const'", "'='", "';'", "'display'", "'('", "')'", "'*'", 
+        "'/'", "'+'", "'-'"
     ];
 
     public static readonly symbolicNames = [
@@ -42,7 +42,7 @@ export class SimpleLangParser extends antlr.Parser {
         "IDENTIFIER", "INT", "WS"
     ];
     public static readonly ruleNames = [
-        "prog", "statement", "variableDeclaration", "assignment", "printStatement", 
+        "prog", "statement", "variableDeclaration", "assignment", "displayStatement", 
         "expression",
     ];
 
@@ -123,7 +123,7 @@ export class SimpleLangParser extends antlr.Parser {
                 this.enterOuterAlt(localContext, 3);
                 {
                 this.state = 22;
-                this.printStatement();
+                this.displayStatement();
                 }
                 break;
             case 4:
@@ -208,9 +208,9 @@ export class SimpleLangParser extends antlr.Parser {
         }
         return localContext;
     }
-    public printStatement(): PrintStatementContext {
-        let localContext = new PrintStatementContext(this.context, this.state);
-        this.enterRule(localContext, 8, SimpleLangParser.RULE_printStatement);
+    public displayStatement(): DisplayStatementContext {
+        let localContext = new DisplayStatementContext(this.context, this.state);
+        this.enterRule(localContext, 8, SimpleLangParser.RULE_displayStatement);
         try {
             this.enterOuterAlt(localContext, 1);
             {
@@ -444,8 +444,8 @@ export class StatementContext extends antlr.ParserRuleContext {
     public assignment(): AssignmentContext | null {
         return this.getRuleContext(0, AssignmentContext);
     }
-    public printStatement(): PrintStatementContext | null {
-        return this.getRuleContext(0, PrintStatementContext);
+    public displayStatement(): DisplayStatementContext | null {
+        return this.getRuleContext(0, DisplayStatementContext);
     }
     public expression(): ExpressionContext | null {
         return this.getRuleContext(0, ExpressionContext);
@@ -539,7 +539,7 @@ export class AssignmentContext extends antlr.ParserRuleContext {
 }
 
 
-export class PrintStatementContext extends antlr.ParserRuleContext {
+export class DisplayStatementContext extends antlr.ParserRuleContext {
     public constructor(parent: antlr.ParserRuleContext | null, invokingState: number) {
         super(parent, invokingState);
     }
@@ -547,21 +547,21 @@ export class PrintStatementContext extends antlr.ParserRuleContext {
         return this.getToken(SimpleLangParser.IDENTIFIER, 0)!;
     }
     public override get ruleIndex(): number {
-        return SimpleLangParser.RULE_printStatement;
+        return SimpleLangParser.RULE_displayStatement;
     }
     public override enterRule(listener: SimpleLangListener): void {
-        if(listener.enterPrintStatement) {
-             listener.enterPrintStatement(this);
+        if(listener.enterDisplayStatement) {
+             listener.enterDisplayStatement(this);
         }
     }
     public override exitRule(listener: SimpleLangListener): void {
-        if(listener.exitPrintStatement) {
-             listener.exitPrintStatement(this);
+        if(listener.exitDisplayStatement) {
+             listener.exitDisplayStatement(this);
         }
     }
     public override accept<Result>(visitor: SimpleLangVisitor<Result>): Result | null {
-        if (visitor.visitPrintStatement) {
-            return visitor.visitPrintStatement(this);
+        if (visitor.visitDisplayStatement) {
+            return visitor.visitDisplayStatement(this);
         } else {
             return visitor.visitChildren(this);
         }

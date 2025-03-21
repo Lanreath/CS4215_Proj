@@ -7,7 +7,7 @@ import { ProgContext } from "./SimpleLangParser.js";
 import { StatementContext } from "./SimpleLangParser.js";
 import { VariableDeclarationContext } from "./SimpleLangParser.js";
 import { AssignmentContext } from "./SimpleLangParser.js";
-import { PrintStatementContext } from "./SimpleLangParser.js";
+import { DisplayStatementContext } from "./SimpleLangParser.js";
 import { ExpressionContext } from "./SimpleLangParser.js";
 
 
@@ -44,11 +44,11 @@ export class SimpleLangVisitor<Result> extends AbstractParseTreeVisitor<Result> 
      */
     visitAssignment?: (ctx: AssignmentContext) => Result;
     /**
-     * Visit a parse tree produced by `SimpleLangParser.printStatement`.
+     * Visit a parse tree produced by `SimpleLangParser.displayStatement`.
      * @param ctx the parse tree
      * @return the visitor result
      */
-    visitPrintStatement?: (ctx: PrintStatementContext) => Result;
+    visitDisplayStatement?: (ctx: DisplayStatementContext) => Result;
     /**
      * Visit a parse tree produced by `SimpleLangParser.expression`.
      * @param ctx the parse tree

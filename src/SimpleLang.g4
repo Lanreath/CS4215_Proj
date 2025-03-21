@@ -5,7 +5,7 @@ prog: statement* EOF;
 statement
     : variableDeclaration
     | assignment
-    | printStatement
+    | displayStatement
     | expression
     ;
 
@@ -17,8 +17,8 @@ assignment
     : IDENTIFIER '=' expression ';'
     ;
 
-printStatement
-    : 'print' '(' IDENTIFIER ')' ';'
+displayStatement
+    : 'display' '(' IDENTIFIER ')' ';'
     ;
 
 expression

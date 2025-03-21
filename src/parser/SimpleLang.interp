@@ -3,7 +3,7 @@ null
 'const'
 '='
 ';'
-'print'
+'display'
 '('
 ')'
 '*'
@@ -35,7 +35,7 @@ prog
 statement
 variableDeclaration
 assignment
-printStatement
+displayStatement
 expression
 
 

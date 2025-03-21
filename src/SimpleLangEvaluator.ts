@@ -1,9 +1,9 @@
 import { BasicEvaluator } from "conductor/dist/conductor/runner";
 import { IRunnerPlugin } from "conductor/dist/conductor/runner/types";
 import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
-import { SimpleLangLexer } from './parser/src/SimpleLangLexer';
-import { ExpressionContext, ProgContext, SimpleLangParser } from './parser/src/SimpleLangParser';
-import { SimpleLangVisitor } from './parser/src/SimpleLangVisitor';
+import { SimpleLangLexer } from './parser/SimpleLangLexer';
+import { SimpleLangParser, ExpressionContext, ProgContext, VariableDeclarationContext, AssignmentContext, DisplayStatementContext } from './parser  /SimpleLangParser';
+import { SimpleLangVisitor } from './parser/SimpleLangVisitor';
 
 enum BorrowState {
     Owned,
@@ -20,14 +20,62 @@ class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implem
 
     // Visit a parse tree produced by SimpleLangParser#prog
     visitProg(ctx: ProgContext): number {
-        return this.visit(ctx.expression());
+        let result = 0;
+        for (const statement of ctx.statement()) {
+            result = this.visit(statement);
+        }
+        return result;
+    }
+
+    // Visit a parse tree produced by SimpleLangParser#variableDeclaration
+    visitVariableDeclaration(ctx: VariableDeclarationContext): number {
+        const variable = ctx.IDENTIFIER().getText();
+        const value = this.visit(ctx.expression());
+        this.variableStates.set(variable, new VariableState(BorrowState.Owned, value));
+        return value;
+    }
+
+    // Visit a parse tree produced by SimpleLangParser#assignment
+    visitAssignment(ctx: AssignmentContext): number {
+        const variable = ctx.IDENTIFIER().getText();
+        const value = this.visit(ctx.expression());
+        this.checkBorrowingRules(variable, BorrowState.Owned);
+        this.variableStates.set(variable, new VariableState(BorrowState.Owned, value));
+        return value;
+    }
+
+    // Visit a parse tree produced by SimpleLangParser#displayStatement
+    visitDisplayStatement(ctx: DisplayStatementContext): number {
+        const variable = ctx.IDENTIFIER().getText();
+        const state = this.variableStates.get(variable);
+        if (!state) {
+            throw new Error(`Variable ${variable} not declared`);
+        }
+        if (state.state !== BorrowState.Owned) {
+            throw new Error(`Variable ${variable} is not owned and cannot be displayed`);
+        }
+        console.log(state.value);
+        return state.value;
     }
 
     // Visit a parse tree produced by SimpleLangParser#expression
     visitExpression(ctx: ExpressionContext): number {
         if (ctx.getChildCount() === 1) {
-            // INT case
-            return parseInt(ctx.getText());
+            if (ctx.INT()) {
+                // INT case
+                return parseInt(ctx.INT().getText());
+            } else if (ctx.IDENTIFIER()) {
+                // Variable case
+                const variable = ctx.IDENTIFIER().getText();
+                const state = this.variableStates.get(variable);
+                if (!state) {
+                    throw new Error(`Variable ${variable} not declared`);
+                }
+                if (state.state !== BorrowState.Owned) {
+                    throw new Error(`Variable ${variable} is not owned and cannot be used`);
+                }
+                return state.value;
+            }
         } else if (ctx.getChildCount() === 3) {
             if (ctx.getChild(0).getText() === '(' && ctx.getChild(2).getText() === ')') {
                 // Parenthesized expression
@@ -114,7 +162,7 @@ export class SimpleLangEvaluator extends BasicEvaluator {
             const result = this.visitor.visit(tree);
             
             // Send the result to the REPL
-            this.conductor.sendOutput(`Result of expression: ${result}`);
+            this.conductor.sendOutput(`Output: ${result}`);
         }  catch (error) {
             // Handle errors and send them to the REPL
             if (error instanceof Error) {
