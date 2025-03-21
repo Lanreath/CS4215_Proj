@@ -36,4 +36,6 @@ expression
 IDENTIFIER: [a-zA-Z_][a-zA-Z_0-9]*;
 INT: [0-9]+;
 
+MUT: 'mut';
+
 WS: [ \t\r\n]+ -> skip;
