@@ -33,6 +33,8 @@ class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implem
         const value = this.visit(ctx.expression());
         const mutable = ctx.getChild(0).getText() === 'let';
         this.variableStates.set(variable, new VariableState(BorrowState.Owned, value, mutable));
+        // transfer ownership
+        this.borrowVariable(variable, mutable);
         return value;
     }
 
