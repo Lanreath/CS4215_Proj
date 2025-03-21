@@ -6,11 +6,11 @@ statement
     : variableDeclaration
     | assignment
     | displayStatement
-    | expressionStatement
+    | expression
     ;
 
 variableDeclaration
-    : ('const' | 'let' 'mut'?) IDENTIFIER '=' expression ';'
+    : ('const' | 'let') IDENTIFIER '=' expression ';'
     ;
 
 assignment
@@ -21,14 +21,9 @@ displayStatement
     : 'display' '(' IDENTIFIER ')' ';'
     ;
 
-expressionStatement
-    : expression ';'
-    ;
-
 expression
     : '(' expression ')'
     | expression op=('*'|'/'|'+'|'-') expression
-    | '&' 'mut'? IDENTIFIER
     | IDENTIFIER
     | INT
     ;
