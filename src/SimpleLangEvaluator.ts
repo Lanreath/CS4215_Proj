@@ -108,7 +108,7 @@ class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implem
             }
         } else if (ctx.getChildCount() === 3 && ctx.getChild(0).getText() === '&') {
             // Borrowing case
-            const mutable = ctx.getChild(0).getText() === '&mut'; ;
+            const mutable = ctx.getChild(1).getText() === 'mut';
             const variable = ctx.getChild(mutable ? 2 : 1).getText();
             const state = this.variableStates.get(variable);
             if (!state) {
