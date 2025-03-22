@@ -23,11 +23,9 @@ jobs:
           node-version: 20
           cache: yarn
 
-      - name: yarn install
-        run: yarn install --mode=update-lockfile
 
-      - name: yarn build
-        run: yarn workspace conductor-runner-example build
+      - name: yarn run and build
+        run: yarn install --mode=update-lockfile && yarn build
 
       - name: Upload artifacts
         id: deployment
