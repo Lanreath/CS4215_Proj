@@ -122,6 +122,10 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements R
         return value;
     }
 
+    visitInt(ctx: rp.IntContext): number {
+        return parseInt(ctx.INT().getText());
+    }
+
     // Override the default result method from AbstractParseTreeVisitor
     protected defaultResult(): number {
         return 0;
