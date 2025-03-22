@@ -20,14 +20,14 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: yarn
 
       - name: yarn install
         run: yarn install --mode=update-lockfile
 
       - name: yarn build
-        run: yarn workspaces foreach --all run build
+        run: yarn workspace conductor-runner-example build
 
       - name: Upload artifacts
         id: deployment

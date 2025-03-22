@@ -10,7 +10,7 @@ function evaluate(input) {
     const tokenStream = new CommonTokenStream(lexer);
     const parser = new RustParser(tokenStream);
     const tree = parser.replLine();
-    console.log(evaluator.visit(tree));
+    evaluator.visit(tree);
 }
 const rl = readline.createInterface({
     input: process.stdin,
