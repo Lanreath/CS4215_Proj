@@ -2,6 +2,9 @@ grammar Rust;
 
 prog: statement* EOF;
 
+// For REPL debugging
+replLine: statement* ;
+
 statement
     : variableDeclaration
     | functionDeclaration
@@ -9,7 +12,7 @@ statement
     | block
     | ifStatement
     | whileLoop
-    | expression
+    | expression ';'
     ;
 
 variableDeclaration

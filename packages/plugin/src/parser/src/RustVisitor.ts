@@ -4,6 +4,7 @@ import { AbstractParseTreeVisitor } from "antlr4ng";
 
 
 import { ProgContext } from "./RustParser.js";
+import { ReplLineContext } from "./RustParser.js";
 import { StatementContext } from "./RustParser.js";
 import { VariableDeclarationContext } from "./RustParser.js";
 import { FunctionDeclarationContext } from "./RustParser.js";
@@ -37,6 +38,12 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      * @return the visitor result
      */
     visitProg?: (ctx: ProgContext) => Result;
+    /**
+     * Visit a parse tree produced by `RustParser.replLine`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitReplLine?: (ctx: ReplLineContext) => Result;
     /**
      * Visit a parse tree produced by `RustParser.statement`.
      * @param ctx the parse tree
