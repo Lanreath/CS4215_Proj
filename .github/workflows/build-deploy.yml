@@ -25,7 +25,7 @@ jobs:
 
 
       - name: yarn run and build
-        run: yarn install --mode=update-lockfile && yarn build
+        run: yarn install --mode=update-lockfile && yarn workspace conductor-runner-example run generate && yarn workspace conductor-runner-example build
 
       - name: Upload artifacts
         id: deployment
