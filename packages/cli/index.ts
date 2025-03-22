@@ -24,7 +24,7 @@ const rl = readline.createInterface({
 rl.prompt();
 
 rl.on('line', (line) => {
-    evaluate(line);
+    evaluate(line + '\n');
     rl.prompt();
 }).on('close', () => {
     console.log('Goodbye!');
