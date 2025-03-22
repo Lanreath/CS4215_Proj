@@ -24,8 +24,17 @@ jobs:
           cache: yarn
 
 
-      - name: yarn run and build
-        run: yarn install --mode=update-lockfile && yarn workspace conductor-runner-example run generate && yarn workspace conductor-runner-example build
+      - name: yarn install
+        run: yarn install
+      
+      - name: Check workspaces
+        run: yarn workspaces list
+        
+      - name: Build parser
+        run: yarn workspace conductor-runner-example run generate-parser
+      
+      - name: Build runner
+        run: yarn workspace conductor-runner-example build
 
       - name: Upload artifacts
         id: deployment
