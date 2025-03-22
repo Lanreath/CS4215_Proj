@@ -15,6 +15,7 @@ import { ElifBranchContext } from "./RustParser.js";
 import { ElseBranchContext } from "./RustParser.js";
 import { WhileLoopContext } from "./RustParser.js";
 import { AssignmentContext } from "./RustParser.js";
+import { ExpressionStatementContext } from "./RustParser.js";
 import { IdentifierContext } from "./RustParser.js";
 import { BinaryOpContext } from "./RustParser.js";
 import { UnaryOpContext } from "./RustParser.js";
@@ -103,6 +104,12 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      * @return the visitor result
      */
     visitAssignment?: (ctx: AssignmentContext) => Result;
+    /**
+     * Visit a parse tree produced by `RustParser.expressionStatement`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitExpressionStatement?: (ctx: ExpressionStatementContext) => Result;
     /**
      * Visit a parse tree produced by the `identifier`
      * labeled alternative in `RustParser.expression`.

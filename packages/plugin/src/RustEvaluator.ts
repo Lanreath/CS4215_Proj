@@ -57,7 +57,7 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements R
             const sourceVariable = ctx.expression().getText();
             const sourceState = this.variableStates.get(sourceVariable);
             if (!sourceState) {
-                throw new Error(`Variable ${sourceVariable} not declared`);
+                throw new Error(`Variable ${sourceVariable} not declared.`);
             }
             if (sourceState.state !== BorrowState.Owned) {
                 throw new Error(`Variable ${sourceVariable} is not owned and cannot be assigned`);
@@ -73,6 +73,10 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements R
             throw new Error(`Variable assignment failed`);
         }
         return result;
+    }
+
+    visitExpressionStatement(ctx: rp.ExpressionStatementContext): number {
+        return this.visit(ctx.expression());
     }
 
     // Visit a parse tree produced by RustParser#parenExpr
@@ -124,7 +128,7 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements R
         // TODO: Implement in environment frames
         const value = this.variableStates.get(ctx.IDENTIFIER().getText())?.value;
         if (value === undefined) {
-            throw new Error(`Variable ${ctx.IDENTIFIER().getText()} not declared`);
+            throw new Error(`Variable ${ctx.IDENTIFIER().getText()} not declared.`);
         }
         return value;
     }

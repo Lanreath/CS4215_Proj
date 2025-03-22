@@ -9,7 +9,7 @@ statement
     | block
     | ifStatement
     | whileLoop
-    | expression ';'
+    | expressionStatement
     ;
 
 variableDeclaration
@@ -51,6 +51,10 @@ whileLoop
 
 assignment
     : IDENTIFIER '=' expression ';'
+    ;
+
+expressionStatement
+    : expression ';'
     ;
 
 expression

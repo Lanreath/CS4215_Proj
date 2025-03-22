@@ -15,6 +15,7 @@ import { ElifBranchContext } from "./RustParser.js";
 import { ElseBranchContext } from "./RustParser.js";
 import { WhileLoopContext } from "./RustParser.js";
 import { AssignmentContext } from "./RustParser.js";
+import { ExpressionStatementContext } from "./RustParser.js";
 import { IdentifierContext } from "./RustParser.js";
 import { BinaryOpContext } from "./RustParser.js";
 import { UnaryOpContext } from "./RustParser.js";
@@ -148,6 +149,16 @@ export class RustListener implements ParseTreeListener {
      * @param ctx the parse tree
      */
     exitAssignment?: (ctx: AssignmentContext) => void;
+    /**
+     * Enter a parse tree produced by `RustParser.expressionStatement`.
+     * @param ctx the parse tree
+     */
+    enterExpressionStatement?: (ctx: ExpressionStatementContext) => void;
+    /**
+     * Exit a parse tree produced by `RustParser.expressionStatement`.
+     * @param ctx the parse tree
+     */
+    exitExpressionStatement?: (ctx: ExpressionStatementContext) => void;
     /**
      * Enter a parse tree produced by the `identifier`
      * labeled alternative in `RustParser.expression`.
