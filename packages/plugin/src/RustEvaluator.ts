@@ -11,11 +11,27 @@ enum BorrowState {
     BorrowedImmutably
 }
 
+
+interface Runtime {
+    address: number;
+    os: any;
+    env: any;
+}
+
 class VariableState {
     constructor(public state: BorrowState, public value: number, public mutable: boolean) {}
 }
 
 export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements RustVisitor<number> {
+    private mem: ArrayBuffer = new ArrayBuffer(1024); // Memory
+
+    /**  TODO: Implement with single array buffer
+    private pc: number = 0; // Program counter
+    private os: number[] = []; // Operand stack
+    private env: any[] = []; // Environment frames
+    private rs: Runtime[] = []; // Runtime stack
+    */
+
     private variableStates: Map<string, VariableState> = new Map();
 
     // Visit a parse tree produced by RustParser#prog
