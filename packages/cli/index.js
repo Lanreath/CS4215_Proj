@@ -9,7 +9,7 @@ function evaluate(input) {
     const lexer = new RustLexer(inputStream);
     const tokenStream = new CommonTokenStream(lexer);
     const parser = new RustParser(tokenStream);
-    const tree = parser.replLine();
+    const tree = parser.prog();
     evaluator.visit(tree);
 }
 const rl = readline.createInterface({

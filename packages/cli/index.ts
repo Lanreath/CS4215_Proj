@@ -11,7 +11,7 @@ function evaluate(input: string): void {
     const lexer = new RustLexer(inputStream);
     const tokenStream = new CommonTokenStream(lexer);
     const parser = new RustParser(tokenStream);
-    const tree = parser.replLine();
+    const tree = parser.prog();
 
     evaluator.visit(tree);
 }

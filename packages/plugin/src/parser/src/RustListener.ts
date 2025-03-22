@@ -4,7 +4,6 @@ import { ErrorNode, ParseTreeListener, ParserRuleContext, TerminalNode } from "a
 
 
 import { ProgContext } from "./RustParser.js";
-import { ReplLineContext } from "./RustParser.js";
 import { StatementContext } from "./RustParser.js";
 import { VariableDeclarationContext } from "./RustParser.js";
 import { FunctionDeclarationContext } from "./RustParser.js";
@@ -39,16 +38,6 @@ export class RustListener implements ParseTreeListener {
      * @param ctx the parse tree
      */
     exitProg?: (ctx: ProgContext) => void;
-    /**
-     * Enter a parse tree produced by `RustParser.replLine`.
-     * @param ctx the parse tree
-     */
-    enterReplLine?: (ctx: ReplLineContext) => void;
-    /**
-     * Exit a parse tree produced by `RustParser.replLine`.
-     * @param ctx the parse tree
-     */
-    exitReplLine?: (ctx: ReplLineContext) => void;
     /**
      * Enter a parse tree produced by `RustParser.statement`.
      * @param ctx the parse tree
