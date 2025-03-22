@@ -24,7 +24,7 @@ jobs:
           cache: yarn
 
       - name: yarn install
-        run: yarn install
+        run: yarn install --mode=update-lockfile
 
       - name: yarn build
         run: yarn workspaces run build
