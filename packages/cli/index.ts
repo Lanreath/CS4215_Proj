@@ -2,9 +2,9 @@ import { CharStream, CommonTokenStream } from 'antlr4ng';
 import * as readline from 'readline';
 import { RustLexer } from '../plugin/src/parser/src/RustLexer.js';
 import { RustParser } from '../plugin/src/parser/src/RustParser.js';
-import { RustVisitor } from '../plugin/src/parser/src/RustVisitor.js';
+import { RustEvaluatorVisitor } from '../plugin/src/RustEvaluator.js';
 
-const evaluator = new RustVisitor();
+const evaluator = new RustEvaluatorVisitor();
 
 function evaluate(input: string): void {
     const inputStream = CharStream.fromString(input);
@@ -24,9 +24,13 @@ const rl = readline.createInterface({
 rl.prompt();
 
 rl.on('line', (line) => {
-    evaluate(line + '\n');
+    try {
+        evaluate(line + '\n');
+    } catch (e) {
+        console.error(e);
+    }
     rl.prompt();
 }).on('close', () => {
-    console.log('Goodbye!');
+    console.log("Exiting...");
     process.exit(0);
 });

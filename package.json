@@ -3,9 +3,9 @@
     "private": true,
     "packageManager": "yarn@4.6.0",
     "scripts": {
-        "build": "yarn workspaces foreach --all run build",
+        "build": "yarn workspace conductor-runner-example build",
         "generate-parser": "yarn workspace conductor-runner-example run generate-parser",
-        "start": "node packages/cli/index.js"
+        "start": "npx tsx packages/cli/index.js"
     },
     "workspaces": [
         "packages/*"

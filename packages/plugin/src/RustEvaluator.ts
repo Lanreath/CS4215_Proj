@@ -15,14 +15,17 @@ class VariableState {
     constructor(public state: BorrowState, public value: number, public mutable: boolean) {}
 }
 
-class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements RustVisitor<number> {
+export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements RustVisitor<number> {
     private variableStates: Map<string, VariableState> = new Map();
 
     // Visit a parse tree produced by RustParser#prog
     visitProg(ctx: rp.ProgContext): number {
-        let result = 0;
+        let result : number = 0;
         for (const statement of ctx.statement()) {
-            result = this.visit(statement);
+            result = this.visit(statement) ?? 0;
+        }
+        if (result == null) {
+            throw new Error("No result returned from program");
         }
         return result;
     }
@@ -31,13 +34,19 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements R
     visitStatement(ctx: rp.StatementContext): number {
         const result = this.visitChildren(ctx);
         console.log(result);
-        return result;
+        return result ?? 0;
     }
 
     // Visit a parse tree produced by RustParser#variableDeclaration
     visitVariableDeclaration(ctx: rp.VariableDeclarationContext): number {
+        if (!ctx._name || !ctx._value || !ctx._name.text) {
+            throw new Error("Error in variable declaration grammar"); 
+        }
         const name = ctx._name.text;
-        const value = this.visit(ctx._value);
+        const value = this.visit(ctx._value) 
+        if (value == null) {
+            throw new Error("Missing value in variable declaration");
+        }
         const isMutable = ctx._mutFlag ? true : false;
         this.variableStates.set(name, new VariableState(BorrowState.Owned, value, isMutable));
         return value;
@@ -66,6 +75,9 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements R
             this.variableStates.set(sourceVariable, new VariableState(BorrowState.BorrowedMutably, sourceState.value, sourceState.mutable));
         } else {
             const value = this.visit(ctx.expression());
+            if (value == null) {
+                throw new Error("Missing value in assignment");
+            }
             this.variableStates.set(variable, new VariableState(BorrowState.Owned, value, state ? state.mutable : false));
         }
         const result = this.variableStates.get(variable)?.value
@@ -76,21 +88,35 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements R
     }
 
     visitExpressionStatement(ctx: rp.ExpressionStatementContext): number {
-        return this.visit(ctx.expression());
+        const result = this.visit(ctx.expression());
+        if (result == null) {
+            throw new Error("Missing value in expression statement");
+        }
+        return result;
     }
 
     // Visit a parse tree produced by RustParser#parenExpr
     visitParenExpr(ctx: rp.ParenExprContext): number {
-        return this.visit(ctx.expression());
+        const result = this.visit(ctx.expression());
+        if (result == null) {
+            throw new Error("Missing value in parentheses");
+        }
+        return result;
     }
 
     // Visit a parse tree produced by RustParser#binaryOp
     visitBinaryOp(ctx: rp.BinaryOpContext): number {
+        // TODO: implement in virtual machine control and operand stacks
+        if (!ctx._left || !ctx._right || !ctx._op) {
+            throw new Error("Error in binary operation grammar");
+        }
         const left = this.visit(ctx._left);
         const right = this.visit(ctx._right);
         const op = ctx._op.text;
+        if (left == null || right == null) {
+            throw new Error("Missing value in binary operation");
+        }
 
-        // TODO: implement in virtual machine control and operand stacks
         switch (op) {
             case '+': return left + right;
             case '-': return left - right;
@@ -120,7 +146,13 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements R
     // Visit a parse tree produced by RustParser#unaryOp
     visitUnaryOp(ctx: rp.UnaryOpContext): number {
         // TODO: Implement in virtual machine control and operand stacks
+        if (!ctx._operand) {
+            throw new Error("Error in unary operation grammar");
+        }
         const value = this.visit(ctx._operand);
+        if (value == null) {
+            throw new Error("Missing value in unary operation");
+        }
         return -value;
     }
 

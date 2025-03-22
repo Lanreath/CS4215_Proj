@@ -31,7 +31,7 @@ jobs:
         run: yarn workspaces list
         
       - name: Build parser
-        run: yarn workspace conductor-runner-example run generate-parser
+        run: yarn workspace conductor-runner-example generate-parser
       
       - name: Build runner
         run: yarn workspace conductor-runner-example build
