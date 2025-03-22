@@ -24,7 +24,7 @@ jobs:
           cache: yarn
 
       - name: yarn install
-        run: yarn install --immutable
+        run: yarn install
 
       - name: yarn build
         run: yarn workspaces run build
