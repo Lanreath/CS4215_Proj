@@ -27,7 +27,7 @@ jobs:
         run: yarn install --mode=update-lockfile
 
       - name: yarn build
-        run: yarn workspaces run build
+        run: yarn workspaces foreach --all run build
 
       - name: Upload artifacts
         id: deployment
