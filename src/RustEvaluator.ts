@@ -27,6 +27,13 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements R
         return result;
     }
 
+    // Use this for debugging
+    visitStatement(ctx: rp.StatementContext): number {
+        const result = this.visitChildren(ctx);
+        console.log(result);
+        return result;
+    }
+
     // Visit a parse tree produced by RustParser#variableDeclaration
     visitVariableDeclaration(ctx: rp.VariableDeclarationContext): number {
         const name = ctx._name.text;
