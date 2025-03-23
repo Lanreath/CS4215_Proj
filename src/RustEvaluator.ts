@@ -34,6 +34,18 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         return 0;
     }
 
+    // Visit a parse tree produced by RustParser#block
+    visitBlock(ctx: rp.BlockContext): number {
+        // TODO: Implement in environment frames
+        for (const statement of ctx.statement()) {
+            this.visit(statement);
+        }
+        if (ctx.expression()) {
+            this.visit(ctx.expression());
+        }
+        return 0;
+    }
+
     // Visit a parse tree produced by RustParser#ifStatement
     visitIfStatement(ctx: rp.IfStatementContext): number {
         // TODO: Implement in environment frames
@@ -55,6 +67,15 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     // Visit a parse tree produced by RustParser#whileStatement
     visitWhileStatement(ctx: rp.WhileStatementContext): number {
         // TODO: Implement in environment frames
+        if (!ctx._condition || !ctx._loopBlock) {
+            throw new Error("Error in while statement grammar");
+        }
+        const loopStart = this.vm.getInstructionCounter();
+        this.visit(ctx._condition);
+        const jumpIndex = this.vm.pushInstruction("JOF", -1) - 1; // Jump to end of while loop if condition is false
+        this.visit(ctx._loopBlock);
+        this.vm.pushInstruction("GOTO", loopStart);
+        this.vm.setInstructionTarget(jumpIndex, this.vm.getInstructionCounter());
         return 0;
     }
 
