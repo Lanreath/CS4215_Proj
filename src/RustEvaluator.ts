@@ -58,28 +58,16 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         return result;
     }
 
-    // Visit a parse tree produced by RustParser#binaryOp
-    visitBinaryOp(ctx: rp.BinaryOpContext): number {
-        // TODO: implement in virtual machine control and operand stacks
+    // Visit a parse tree produced by RustParser#equalityOp
+    vistEqualityOp(ctx: rp.EqualityOpContext): number {
         if (!ctx._left || !ctx._right || !ctx._op) {
-            throw new Error("Error in binary operation grammar");
+            throw new Error("Error in equality operation grammar");
         }
         this.visit(ctx._left);
         this.visit(ctx._right);
+
         const op = ctx._op.text;
         switch (op) {
-            case "+":
-                this.vm.pushInstruction("PLUS");
-                break;
-            case "-":
-                this.vm.pushInstruction("MINUS");
-                break;
-            case "*":
-                this.vm.pushInstruction("TIMES");
-                break;
-            case "/":
-                this.vm.pushInstruction("DIVIDE");
-                break;
             case "<":
                 this.vm.pushInstruction("LT");
                 break;
@@ -99,10 +87,55 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
                 this.vm.pushInstruction("NE");
                 break;
             default:
-                throw new Error(`Invalid binary operator ${op}`);
+                throw new Error(`Invalid equality operator ${op}`);
         }
         return 0;
     }
+
+    // Visit a parse tree produced by RustParser#mulDivOp
+    visitMulDivOp(ctx: rp.MulDivOpContext): number {
+        if (!ctx._left || !ctx._right || !ctx._op) {
+            throw new Error("Error in multiplication/division operation grammar");
+        }
+        this.visit(ctx._left);
+        this.visit(ctx._right);
+
+        const op = ctx._op.text;
+        switch (op) {
+            case "*":
+                this.vm.pushInstruction("TIMES");
+                break;
+            case "/":
+                this.vm.pushInstruction("DIVIDE");
+                break;
+            default:
+                throw new Error(`Invalid multiplication/division operator ${op}`);
+        }
+        return 0;
+    }
+
+    // Visit a parse tree produced by RustParser#addSubOp
+    visitAddSubOp(ctx: rp.AddSubOpContext): number {
+        if (!ctx._left || !ctx._right || !ctx._op) {
+            throw new Error("Error in addition/subtraction operation grammar");
+        }
+        this.visit(ctx._left);
+        this.visit(ctx._right);
+
+        const op = ctx._op.text;
+        switch (op) {
+            case "+":
+                this.vm.pushInstruction("PLUS");
+                break;
+            case "-":
+                this.vm.pushInstruction("MINUS");
+                break;
+            default:
+                throw new Error(`Invalid addition/subtraction operator ${op}`);
+        }
+        return 0;
+    }
+
 
     // Visit a parse tree produced by RustParser#unaryOp
     visitUnaryOp(ctx: rp.UnaryOpContext): number {

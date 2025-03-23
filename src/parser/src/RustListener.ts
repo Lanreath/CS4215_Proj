@@ -17,10 +17,12 @@ import { WhileLoopContext } from "./RustParser.js";
 import { AssignmentContext } from "./RustParser.js";
 import { ExpressionStatementContext } from "./RustParser.js";
 import { IdentifierContext } from "./RustParser.js";
-import { BinaryOpContext } from "./RustParser.js";
+import { EqualityOpContext } from "./RustParser.js";
 import { UnaryOpContext } from "./RustParser.js";
+import { MulDivOpContext } from "./RustParser.js";
 import { ParenExprContext } from "./RustParser.js";
 import { IntContext } from "./RustParser.js";
+import { AddSubOpContext } from "./RustParser.js";
 import { TypeContext } from "./RustParser.js";
 
 
@@ -172,17 +174,17 @@ export class RustListener implements ParseTreeListener {
      */
     exitIdentifier?: (ctx: IdentifierContext) => void;
     /**
-     * Enter a parse tree produced by the `binaryOp`
+     * Enter a parse tree produced by the `equalityOp`
      * labeled alternative in `RustParser.expression`.
      * @param ctx the parse tree
      */
-    enterBinaryOp?: (ctx: BinaryOpContext) => void;
+    enterEqualityOp?: (ctx: EqualityOpContext) => void;
     /**
-     * Exit a parse tree produced by the `binaryOp`
+     * Exit a parse tree produced by the `equalityOp`
      * labeled alternative in `RustParser.expression`.
      * @param ctx the parse tree
      */
-    exitBinaryOp?: (ctx: BinaryOpContext) => void;
+    exitEqualityOp?: (ctx: EqualityOpContext) => void;
     /**
      * Enter a parse tree produced by the `unaryOp`
      * labeled alternative in `RustParser.expression`.
@@ -195,6 +197,18 @@ export class RustListener implements ParseTreeListener {
      * @param ctx the parse tree
      */
     exitUnaryOp?: (ctx: UnaryOpContext) => void;
+    /**
+     * Enter a parse tree produced by the `mulDivOp`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     */
+    enterMulDivOp?: (ctx: MulDivOpContext) => void;
+    /**
+     * Exit a parse tree produced by the `mulDivOp`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     */
+    exitMulDivOp?: (ctx: MulDivOpContext) => void;
     /**
      * Enter a parse tree produced by the `parenExpr`
      * labeled alternative in `RustParser.expression`.
@@ -219,6 +233,18 @@ export class RustListener implements ParseTreeListener {
      * @param ctx the parse tree
      */
     exitInt?: (ctx: IntContext) => void;
+    /**
+     * Enter a parse tree produced by the `addSubOp`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     */
+    enterAddSubOp?: (ctx: AddSubOpContext) => void;
+    /**
+     * Exit a parse tree produced by the `addSubOp`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     */
+    exitAddSubOp?: (ctx: AddSubOpContext) => void;
     /**
      * Enter a parse tree produced by `RustParser.type`.
      * @param ctx the parse tree

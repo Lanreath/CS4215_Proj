@@ -17,10 +17,12 @@ import { WhileLoopContext } from "./RustParser.js";
 import { AssignmentContext } from "./RustParser.js";
 import { ExpressionStatementContext } from "./RustParser.js";
 import { IdentifierContext } from "./RustParser.js";
-import { BinaryOpContext } from "./RustParser.js";
+import { EqualityOpContext } from "./RustParser.js";
 import { UnaryOpContext } from "./RustParser.js";
+import { MulDivOpContext } from "./RustParser.js";
 import { ParenExprContext } from "./RustParser.js";
 import { IntContext } from "./RustParser.js";
+import { AddSubOpContext } from "./RustParser.js";
 import { TypeContext } from "./RustParser.js";
 
 
@@ -118,12 +120,12 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitIdentifier?: (ctx: IdentifierContext) => Result;
     /**
-     * Visit a parse tree produced by the `binaryOp`
+     * Visit a parse tree produced by the `equalityOp`
      * labeled alternative in `RustParser.expression`.
      * @param ctx the parse tree
      * @return the visitor result
      */
-    visitBinaryOp?: (ctx: BinaryOpContext) => Result;
+    visitEqualityOp?: (ctx: EqualityOpContext) => Result;
     /**
      * Visit a parse tree produced by the `unaryOp`
      * labeled alternative in `RustParser.expression`.
@@ -131,6 +133,13 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      * @return the visitor result
      */
     visitUnaryOp?: (ctx: UnaryOpContext) => Result;
+    /**
+     * Visit a parse tree produced by the `mulDivOp`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitMulDivOp?: (ctx: MulDivOpContext) => Result;
     /**
      * Visit a parse tree produced by the `parenExpr`
      * labeled alternative in `RustParser.expression`.
@@ -145,6 +154,13 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      * @return the visitor result
      */
     visitInt?: (ctx: IntContext) => Result;
+    /**
+     * Visit a parse tree produced by the `addSubOp`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitAddSubOp?: (ctx: AddSubOpContext) => Result;
     /**
      * Visit a parse tree produced by `RustParser.type`.
      * @param ctx the parse tree

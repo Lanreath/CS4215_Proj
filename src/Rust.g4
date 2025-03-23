@@ -57,9 +57,12 @@ expressionStatement
     : expression ';'
     ;
 
+// Order of operations
 expression
     : '(' expression ')' # parenExpr
-    | left=expression op=('*'|'/'|'+'|'-'|'>'|'<'|'=='|'!=') right=expression  # binaryOp
+    | left=expression op=('>'|'>='|'<'|'<='|'=='|'!=') right=expression  # equalityOp
+    | left=expression op=('*'|'/') right=expression # mulDivOp
+    | left=expression op=('+'|'-') right=expression # addSubOp
     | '-' operand=expression # unaryOp
     | IDENTIFIER # identifier
     | INT # int
