@@ -28,7 +28,6 @@ param
     : name=IDENTIFIER ':' type
     ;
 
-
 block
     : '{' statement* expression? '}'
     ;

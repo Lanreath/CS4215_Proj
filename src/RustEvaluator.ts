@@ -6,8 +6,20 @@ import { RustLexer } from './parser/src/RustLexer';
 import { RustVisitor } from './parser/src/RustVisitor';
 import { VirtualMachine } from './VirtualMachine';
 
+enum BorrowState {
+    Owned,
+    BorrowedMutably,
+    BorrowedImmutably
+}
+
+class VariableState {
+    state: BorrowState;
+    mutable: boolean;
+}
+
 export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements RustVisitor<number> {
     private vm: VirtualMachine = new VirtualMachine();
+    private variableStates: Map<string, VariableState> = new Map<string, VariableState>();
 
     // Visit a parse tree produced by RustParser#prog
     visitProg(ctx: rp.ProgContext): number {
@@ -22,9 +34,9 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     // Visit a parse tree produced by RustParser#variableDeclaration
     visitVariableDeclaration(ctx: rp.VariableDeclarationContext): number {
         if (!ctx._name || !ctx._value || !ctx._name.text) {
-            throw new Error("Error in variable declaration grammar"); 
+            throw new Error("Error in variable declaration grammar");
         }
-        this.visit(ctx._value) 
+        this.visit(ctx._value);
         return 0;
     }
 

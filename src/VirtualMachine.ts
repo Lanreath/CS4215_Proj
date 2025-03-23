@@ -37,7 +37,7 @@ export class VirtualMachine {
     private memSize: number;
 
     private static readonly OS_BASE = 0
-    private static readonly ENV_BASE = 128;
+    // private static readonly ENV_BASE = 128; // Maybe use this for ownership
     private static readonly RS_BASE = 512;
 
     private ic: number = 0; // Instruction counter
@@ -45,7 +45,7 @@ export class VirtualMachine {
 
     private pc: number = 0; // Program counter
     private osPtr: number = 0; // Operand stack pointer
-    private envPtr: number = 0; // Environment pointer
+    // private envPtr: number = 0; // Maybe use this for ownership
     private rsPtr: number = 0; // Runtime stack pointer
 
     constructor(size: number = 1024) {
@@ -133,7 +133,7 @@ export class VirtualMachine {
 
     public pushOperand(value: number): void {
         const addr = VirtualMachine.OS_BASE + this.osPtr * 4;
-        if (addr >= VirtualMachine.ENV_BASE) {
+        if (addr >= VirtualMachine.RS_BASE) {
             throw new Error("Operand stack overflow");
         }
         this.view.setInt32(addr, value);
