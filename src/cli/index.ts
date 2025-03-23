@@ -31,6 +31,6 @@ rl.on('line', (line) => {
     }
     rl.prompt();
 }).on('close', () => {
-    console.log("Exiting...");
+    evaluator.runVM();
     process.exit(0);
 });

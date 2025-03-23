@@ -1,4 +1,4 @@
-// Generated from /Users/fei/CS/CS4215/CS4215_Proj/packages/plugin/src/Rust.g4 by ANTLR 4.13.1
+// Generated from /Users/fei/CS/CS4215/CS4215_Proj/src/Rust.g4 by ANTLR 4.13.1
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.Token;
