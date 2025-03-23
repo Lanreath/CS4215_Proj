@@ -1,8 +1,8 @@
 import { CharStream, CommonTokenStream } from 'antlr4ng';
 import * as readline from 'readline';
-import { RustLexer } from '../plugin/src/parser/src/RustLexer.js';
-import { RustParser } from '../plugin/src/parser/src/RustParser.js';
-import { RustEvaluatorVisitor } from '../plugin/src/RustEvaluator.js';
+import { RustLexer } from '../parser/src/RustLexer.js';
+import { RustParser } from '../parser/src/RustParser.js';
+import { RustEvaluatorVisitor } from '../RustEvaluator.js';
 
 const evaluator = new RustEvaluatorVisitor();
 

@@ -476,9 +476,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"conductor-runner-example@workspace:packages/plugin":
+"conductor-runner-example@workspace:.":
   version: 0.0.0-use.local
-  resolution: "conductor-runner-example@workspace:packages/plugin"
+  resolution: "conductor-runner-example@workspace:."
   dependencies:
     "@rollup/plugin-node-resolve": "npm:^16.0.0"
     "@rollup/plugin-terser": "npm:^0.4.4"
@@ -580,15 +580,6 @@ __metadata:
   checksum: 10c0/53a6c54e2019b8c914dc395890153ffdc2322781acf4bd7d1a32d7aedc1710807bdcd866ac133903d5629ec601fbb50abe8c2e5553c7f5a0afdd9b6af6c945af
   languageName: node
   linkType: hard
-
-"evaluator-cli@workspace:packages/cli":
-  version: 0.0.0-use.local
-  resolution: "evaluator-cli@workspace:packages/cli"
-  dependencies:
-    "@types/node": "npm:^22.13.10"
-    typescript: "npm:^5.5.3"
-  languageName: unknown
-  linkType: soft
 
 "exponential-backoff@npm:^3.1.1":
   version: 3.1.2
@@ -1136,12 +1127,6 @@ __metadata:
   checksum: 10c0/52ad34ba18edb3613253ecbc7db5c8d6067ed103d8786051e96d42bcb383f7473bbda91b25297435b8a531fe308726cf1bb978456b9fcce044e4885510d73252
   languageName: node
   linkType: hard
-
-"rust-evaluator@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "rust-evaluator@workspace:."
-  languageName: unknown
-  linkType: soft
 
 "safe-buffer@npm:^5.1.0":
   version: 5.2.1

@@ -27,20 +27,17 @@ jobs:
       - name: yarn install
         run: yarn install
       
-      - name: Check workspaces
-        run: yarn workspaces list
-        
       - name: Build parser
-        run: yarn workspace conductor-runner-example generate-parser
+        run: yarn generate-parser
       
       - name: Build runner
-        run: yarn workspace conductor-runner-example build
+        run: yarn build
 
       - name: Upload artifacts
         id: deployment
         uses: actions/upload-pages-artifact@v3
         with:
-          path: packages/plugin/dist/
+          path: dist/
 
   deploy:
     needs: build
