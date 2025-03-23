@@ -8,7 +8,7 @@ statement
     | assignment
     | block
     | ifStatement
-    | whileLoop
+    | whileStatement
     | expressionStatement
     ;
 
@@ -30,23 +30,20 @@ param
 
 
 block
-    : '{' statement* '}'
+    : '{' statement* expression? '}'
     ;
 
 ifStatement
-    : 'if' condition=expression thenBlock=block elifBranch* elseBranch?
-    ;
-
-elifBranch
-    : 'else' 'if' condition=expression thenBlock=block
+    : 'if' condition=expression thenBlock=block elseBranch? ';'
     ;
 
 elseBranch
-    : 'else' elseBlock=block
+    : 'else' block
+    | 'else' ifStatement
     ;
 
-whileLoop
-    : 'while' condition=expression loopBody=block
+whileStatement
+    : 'while' condition=expression loopBlock=block
     ;
 
 assignment

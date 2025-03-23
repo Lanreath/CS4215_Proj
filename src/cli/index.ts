@@ -31,6 +31,7 @@ rl.on('line', (line) => {
     }
     rl.prompt();
 }).on('close', () => {
-    evaluator.runVM();
+    const result = evaluator.runVM();
+    console.log(`Output: ${result}`);
     process.exit(0);
 });

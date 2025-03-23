@@ -11,9 +11,8 @@ import { ParamListContext } from "./RustParser.js";
 import { ParamContext } from "./RustParser.js";
 import { BlockContext } from "./RustParser.js";
 import { IfStatementContext } from "./RustParser.js";
-import { ElifBranchContext } from "./RustParser.js";
 import { ElseBranchContext } from "./RustParser.js";
-import { WhileLoopContext } from "./RustParser.js";
+import { WhileStatementContext } from "./RustParser.js";
 import { AssignmentContext } from "./RustParser.js";
 import { ExpressionStatementContext } from "./RustParser.js";
 import { IdentifierContext } from "./RustParser.js";
@@ -83,23 +82,17 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitIfStatement?: (ctx: IfStatementContext) => Result;
     /**
-     * Visit a parse tree produced by `RustParser.elifBranch`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitElifBranch?: (ctx: ElifBranchContext) => Result;
-    /**
      * Visit a parse tree produced by `RustParser.elseBranch`.
      * @param ctx the parse tree
      * @return the visitor result
      */
     visitElseBranch?: (ctx: ElseBranchContext) => Result;
     /**
-     * Visit a parse tree produced by `RustParser.whileLoop`.
+     * Visit a parse tree produced by `RustParser.whileStatement`.
      * @param ctx the parse tree
      * @return the visitor result
      */
-    visitWhileLoop?: (ctx: WhileLoopContext) => Result;
+    visitWhileStatement?: (ctx: WhileStatementContext) => Result;
     /**
      * Visit a parse tree produced by `RustParser.assignment`.
      * @param ctx the parse tree

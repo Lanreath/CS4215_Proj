@@ -11,9 +11,8 @@ import { ParamListContext } from "./RustParser.js";
 import { ParamContext } from "./RustParser.js";
 import { BlockContext } from "./RustParser.js";
 import { IfStatementContext } from "./RustParser.js";
-import { ElifBranchContext } from "./RustParser.js";
 import { ElseBranchContext } from "./RustParser.js";
-import { WhileLoopContext } from "./RustParser.js";
+import { WhileStatementContext } from "./RustParser.js";
 import { AssignmentContext } from "./RustParser.js";
 import { ExpressionStatementContext } from "./RustParser.js";
 import { IdentifierContext } from "./RustParser.js";
@@ -112,16 +111,6 @@ export class RustListener implements ParseTreeListener {
      */
     exitIfStatement?: (ctx: IfStatementContext) => void;
     /**
-     * Enter a parse tree produced by `RustParser.elifBranch`.
-     * @param ctx the parse tree
-     */
-    enterElifBranch?: (ctx: ElifBranchContext) => void;
-    /**
-     * Exit a parse tree produced by `RustParser.elifBranch`.
-     * @param ctx the parse tree
-     */
-    exitElifBranch?: (ctx: ElifBranchContext) => void;
-    /**
      * Enter a parse tree produced by `RustParser.elseBranch`.
      * @param ctx the parse tree
      */
@@ -132,15 +121,15 @@ export class RustListener implements ParseTreeListener {
      */
     exitElseBranch?: (ctx: ElseBranchContext) => void;
     /**
-     * Enter a parse tree produced by `RustParser.whileLoop`.
+     * Enter a parse tree produced by `RustParser.whileStatement`.
      * @param ctx the parse tree
      */
-    enterWhileLoop?: (ctx: WhileLoopContext) => void;
+    enterWhileStatement?: (ctx: WhileStatementContext) => void;
     /**
-     * Exit a parse tree produced by `RustParser.whileLoop`.
+     * Exit a parse tree produced by `RustParser.whileStatement`.
      * @param ctx the parse tree
      */
-    exitWhileLoop?: (ctx: WhileLoopContext) => void;
+    exitWhileStatement?: (ctx: WhileStatementContext) => void;
     /**
      * Enter a parse tree produced by `RustParser.assignment`.
      * @param ctx the parse tree

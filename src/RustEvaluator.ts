@@ -19,18 +19,41 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         return 0;
     }
 
-    // Use this for debugging
-    visitStatement(ctx: rp.StatementContext): number {
-        const result = this.visitChildren(ctx);
-        return 0;
-    }
-
     // Visit a parse tree produced by RustParser#variableDeclaration
     visitVariableDeclaration(ctx: rp.VariableDeclarationContext): number {
         if (!ctx._name || !ctx._value || !ctx._name.text) {
             throw new Error("Error in variable declaration grammar"); 
         }
         this.visit(ctx._value) 
+        return 0;
+    }
+
+    // Visit a parse tree produced by RustParser#functionDeclaration
+    visitFunctionDeclaration(ctx: rp.FunctionDeclarationContext): number {
+        // TODO: Implement in environment frames
+        return 0;
+    }
+
+    // Visit a parse tree produced by RustParser#ifStatement
+    visitIfStatement(ctx: rp.IfStatementContext): number {
+        // TODO: Implement in environment frames
+        if (!ctx._condition || !ctx._thenBlock) {
+            throw new Error("Error in if statement grammar");
+        }
+        this.visit(ctx._condition);
+        const jumpIndex = this.vm.pushInstruction("JOF", -1) - 1; // Jump to else branch if condition is false
+        this.visit(ctx._thenBlock);
+        const gotoIndex = this.vm.pushInstruction("GOTO", -1) - 1; // Jump to end of if statement
+        this.vm.setInstructionTarget(jumpIndex, this.vm.getInstructionCounter());
+        if (ctx.elseBranch()) {
+            this.visit(ctx.elseBranch());
+        }
+        this.vm.setInstructionTarget(gotoIndex, this.vm.getInstructionCounter());
+        return 0;
+    }
+
+    // Visit a parse tree produced by RustParser#whileStatement
+    visitWhileStatement(ctx: rp.WhileStatementContext): number {
         // TODO: Implement in environment frames
         return 0;
     }
@@ -59,7 +82,8 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     }
 
     // Visit a parse tree produced by RustParser#equalityOp
-    vistEqualityOp(ctx: rp.EqualityOpContext): number {
+    visitEqualityOp(ctx: rp.EqualityOpContext): number {
+        console.log("Equality operation");
         if (!ctx._left || !ctx._right || !ctx._op) {
             throw new Error("Error in equality operation grammar");
         }
@@ -116,6 +140,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
 
     // Visit a parse tree produced by RustParser#addSubOp
     visitAddSubOp(ctx: rp.AddSubOpContext): number {
+        console.log("Addition/subtraction operation");
         if (!ctx._left || !ctx._right || !ctx._op) {
             throw new Error("Error in addition/subtraction operation grammar");
         }
@@ -173,9 +198,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
 
     // Run the virtual machine
     public runVM(): number {
-        this.vm.run();
-        const result = this.vm.popOperand();
-        console.log(`Result: ${result}`);
+        const result = this.vm.run();
         return result;
     }
 
