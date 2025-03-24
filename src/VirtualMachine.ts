@@ -36,22 +36,20 @@ export class VirtualMachine {
     private view: DataView;
     private memSize: number;
 
-    private static readonly OS_BASE = 0
-    // private static readonly ENV_BASE = 128; // Maybe use this for ownership
+    private static readonly OS_BASE = 0;
     private static readonly RS_BASE = 512;
+    private static readonly HEAP_BASE = 1024; // Start of variable memory space
 
-    private ic: number = 0; // Instruction counter
-    private instructions: Instruction[] = []; // Program instructions
-
-    private pc: number = 0; // Program counter
+    private ic: number = 0;    // Instruction counter
+    private instructions: Instruction[] = [];
+    private pc: number = 0;    // Program counter
     private osPtr: number = 0; // Operand stack pointer
-    // private envPtr: number = 0; // Maybe use this for ownership
-    private rsPtr: number = 0; // Runtime stack pointer
+    private nextVarAddr: number = VirtualMachine.HEAP_BASE; // Next available variable address
 
-    constructor(size: number = 1024) {
-        this.memory = new ArrayBuffer(size);
+    constructor(memSize: number = 4096) { // Ensure this is large enough
+        this.memSize = memSize;
+        this.memory = new ArrayBuffer(memSize);
         this.view = new DataView(this.memory);
-        this.memSize = size;
     }
 
     public getInstructionCounter(): number {
@@ -230,5 +228,35 @@ export class VirtualMachine {
             }
         }
         throw new Error("No DONE instruction");
+    }
+
+    // Improve the allocateVariable method to properly check bounds
+    public allocateVariable(): number {
+        // Check if we have enough memory before allocating
+        if (this.nextVarAddr + 4 > this.memSize) {
+            throw new Error(`Out of memory: Tried to allocate beyond ${this.memSize} bytes`);
+        }
+
+        const addr = this.nextVarAddr;
+        this.nextVarAddr += 4; // Allocate 4 bytes for an integer
+        return addr;
+    }
+
+    public storeValue(addr: number, value: number): void {
+        // Safety check to prevent out-of-bounds writes
+        if (addr < 0 || addr + 4 > this.memSize) {
+            throw new Error(`Invalid memory address for write: ${addr}`);
+        }
+        
+        this.view.setInt32(addr, value, true);
+    }
+
+    public loadValue(addr: number): number {
+        // Safety check to prevent out-of-bounds reads
+        if (addr < 0 || addr + 4 > this.memSize) {
+            throw new Error(`Invalid memory address for read: ${addr}`);
+        }
+        
+        return this.view.getInt32(addr, true);
     }
 }

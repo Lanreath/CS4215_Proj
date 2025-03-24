@@ -13,16 +13,20 @@ import { BlockContext } from "./RustParser.js";
 import { IfStatementContext } from "./RustParser.js";
 import { ElseBranchContext } from "./RustParser.js";
 import { WhileStatementContext } from "./RustParser.js";
-import { AssignmentContext } from "./RustParser.js";
+import { StandardAssignmentContext } from "./RustParser.js";
+import { DereferenceAssignmentContext } from "./RustParser.js";
 import { ExpressionStatementContext } from "./RustParser.js";
 import { IdentifierContext } from "./RustParser.js";
+import { DereferenceExprContext } from "./RustParser.js";
+import { ReferenceExprContext } from "./RustParser.js";
 import { EqualityOpContext } from "./RustParser.js";
 import { UnaryOpContext } from "./RustParser.js";
 import { MulDivOpContext } from "./RustParser.js";
 import { ParenExprContext } from "./RustParser.js";
 import { IntContext } from "./RustParser.js";
 import { AddSubOpContext } from "./RustParser.js";
-import { TypeContext } from "./RustParser.js";
+import { IntegerTypeContext } from "./RustParser.js";
+import { ReferenceTypeContext } from "./RustParser.js";
 
 
 /**
@@ -94,11 +98,19 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitWhileStatement?: (ctx: WhileStatementContext) => Result;
     /**
-     * Visit a parse tree produced by `RustParser.assignment`.
+     * Visit a parse tree produced by the `standardAssignment`
+     * labeled alternative in `RustParser.assignment`.
      * @param ctx the parse tree
      * @return the visitor result
      */
-    visitAssignment?: (ctx: AssignmentContext) => Result;
+    visitStandardAssignment?: (ctx: StandardAssignmentContext) => Result;
+    /**
+     * Visit a parse tree produced by the `dereferenceAssignment`
+     * labeled alternative in `RustParser.assignment`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitDereferenceAssignment?: (ctx: DereferenceAssignmentContext) => Result;
     /**
      * Visit a parse tree produced by `RustParser.expressionStatement`.
      * @param ctx the parse tree
@@ -112,6 +124,20 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      * @return the visitor result
      */
     visitIdentifier?: (ctx: IdentifierContext) => Result;
+    /**
+     * Visit a parse tree produced by the `dereferenceExpr`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitDereferenceExpr?: (ctx: DereferenceExprContext) => Result;
+    /**
+     * Visit a parse tree produced by the `referenceExpr`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitReferenceExpr?: (ctx: ReferenceExprContext) => Result;
     /**
      * Visit a parse tree produced by the `equalityOp`
      * labeled alternative in `RustParser.expression`.
@@ -155,10 +181,18 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitAddSubOp?: (ctx: AddSubOpContext) => Result;
     /**
-     * Visit a parse tree produced by `RustParser.type`.
+     * Visit a parse tree produced by the `integerType`
+     * labeled alternative in `RustParser.type`.
      * @param ctx the parse tree
      * @return the visitor result
      */
-    visitType?: (ctx: TypeContext) => Result;
+    visitIntegerType?: (ctx: IntegerTypeContext) => Result;
+    /**
+     * Visit a parse tree produced by the `referenceType`
+     * labeled alternative in `RustParser.type`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitReferenceType?: (ctx: ReferenceTypeContext) => Result;
 }
 

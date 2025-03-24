@@ -13,16 +13,20 @@ import { BlockContext } from "./RustParser.js";
 import { IfStatementContext } from "./RustParser.js";
 import { ElseBranchContext } from "./RustParser.js";
 import { WhileStatementContext } from "./RustParser.js";
-import { AssignmentContext } from "./RustParser.js";
+import { StandardAssignmentContext } from "./RustParser.js";
+import { DereferenceAssignmentContext } from "./RustParser.js";
 import { ExpressionStatementContext } from "./RustParser.js";
 import { IdentifierContext } from "./RustParser.js";
+import { DereferenceExprContext } from "./RustParser.js";
+import { ReferenceExprContext } from "./RustParser.js";
 import { EqualityOpContext } from "./RustParser.js";
 import { UnaryOpContext } from "./RustParser.js";
 import { MulDivOpContext } from "./RustParser.js";
 import { ParenExprContext } from "./RustParser.js";
 import { IntContext } from "./RustParser.js";
 import { AddSubOpContext } from "./RustParser.js";
-import { TypeContext } from "./RustParser.js";
+import { IntegerTypeContext } from "./RustParser.js";
+import { ReferenceTypeContext } from "./RustParser.js";
 
 
 /**
@@ -131,15 +135,29 @@ export class RustListener implements ParseTreeListener {
      */
     exitWhileStatement?: (ctx: WhileStatementContext) => void;
     /**
-     * Enter a parse tree produced by `RustParser.assignment`.
+     * Enter a parse tree produced by the `standardAssignment`
+     * labeled alternative in `RustParser.assignment`.
      * @param ctx the parse tree
      */
-    enterAssignment?: (ctx: AssignmentContext) => void;
+    enterStandardAssignment?: (ctx: StandardAssignmentContext) => void;
     /**
-     * Exit a parse tree produced by `RustParser.assignment`.
+     * Exit a parse tree produced by the `standardAssignment`
+     * labeled alternative in `RustParser.assignment`.
      * @param ctx the parse tree
      */
-    exitAssignment?: (ctx: AssignmentContext) => void;
+    exitStandardAssignment?: (ctx: StandardAssignmentContext) => void;
+    /**
+     * Enter a parse tree produced by the `dereferenceAssignment`
+     * labeled alternative in `RustParser.assignment`.
+     * @param ctx the parse tree
+     */
+    enterDereferenceAssignment?: (ctx: DereferenceAssignmentContext) => void;
+    /**
+     * Exit a parse tree produced by the `dereferenceAssignment`
+     * labeled alternative in `RustParser.assignment`.
+     * @param ctx the parse tree
+     */
+    exitDereferenceAssignment?: (ctx: DereferenceAssignmentContext) => void;
     /**
      * Enter a parse tree produced by `RustParser.expressionStatement`.
      * @param ctx the parse tree
@@ -162,6 +180,30 @@ export class RustListener implements ParseTreeListener {
      * @param ctx the parse tree
      */
     exitIdentifier?: (ctx: IdentifierContext) => void;
+    /**
+     * Enter a parse tree produced by the `dereferenceExpr`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     */
+    enterDereferenceExpr?: (ctx: DereferenceExprContext) => void;
+    /**
+     * Exit a parse tree produced by the `dereferenceExpr`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     */
+    exitDereferenceExpr?: (ctx: DereferenceExprContext) => void;
+    /**
+     * Enter a parse tree produced by the `referenceExpr`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     */
+    enterReferenceExpr?: (ctx: ReferenceExprContext) => void;
+    /**
+     * Exit a parse tree produced by the `referenceExpr`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     */
+    exitReferenceExpr?: (ctx: ReferenceExprContext) => void;
     /**
      * Enter a parse tree produced by the `equalityOp`
      * labeled alternative in `RustParser.expression`.
@@ -235,15 +277,29 @@ export class RustListener implements ParseTreeListener {
      */
     exitAddSubOp?: (ctx: AddSubOpContext) => void;
     /**
-     * Enter a parse tree produced by `RustParser.type`.
+     * Enter a parse tree produced by the `integerType`
+     * labeled alternative in `RustParser.type`.
      * @param ctx the parse tree
      */
-    enterType?: (ctx: TypeContext) => void;
+    enterIntegerType?: (ctx: IntegerTypeContext) => void;
     /**
-     * Exit a parse tree produced by `RustParser.type`.
+     * Exit a parse tree produced by the `integerType`
+     * labeled alternative in `RustParser.type`.
      * @param ctx the parse tree
      */
-    exitType?: (ctx: TypeContext) => void;
+    exitIntegerType?: (ctx: IntegerTypeContext) => void;
+    /**
+     * Enter a parse tree produced by the `referenceType`
+     * labeled alternative in `RustParser.type`.
+     * @param ctx the parse tree
+     */
+    enterReferenceType?: (ctx: ReferenceTypeContext) => void;
+    /**
+     * Exit a parse tree produced by the `referenceType`
+     * labeled alternative in `RustParser.type`.
+     * @param ctx the parse tree
+     */
+    exitReferenceType?: (ctx: ReferenceTypeContext) => void;
 
     visitTerminal(node: TerminalNode): void {}
     visitErrorNode(node: ErrorNode): void {}

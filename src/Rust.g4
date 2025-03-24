@@ -46,7 +46,8 @@ whileStatement
     ;
 
 assignment
-    : IDENTIFIER '=' expression ';'
+    : IDENTIFIER '=' expression ';'                 # standardAssignment
+    | '*' target=expression '=' value=expression ';'  # dereferenceAssignment
     ;
 
 expressionStatement
@@ -55,18 +56,21 @@ expressionStatement
 
 // Order of operations
 expression
-    : '(' expression ')' # parenExpr
+    : '(' expression ')'                               # parenExpr
+    | '&' 'mut'? target=expression                     # referenceExpr
+    | '*' target=expression                            # dereferenceExpr
     | left=expression op=('>'|'>='|'<'|'<='|'=='|'!=') right=expression  # equalityOp
-    | left=expression op=('*'|'/') right=expression # mulDivOp
-    | left=expression op=('+'|'-') right=expression # addSubOp
-    | '-' operand=expression # unaryOp
-    | IDENTIFIER # identifier
-    | INT # int
+    | left=expression op=('*'|'/') right=expression    # mulDivOp
+    | left=expression op=('+'|'-') right=expression    # addSubOp
+    | '-' operand=expression                           # unaryOp
+    | IDENTIFIER                                       # identifier
+    | INT                                              # int
     ;
 
-// Hardcoded until type checker is implemented
+// Updated to include reference types
 type
-    : 'i64'
+    : 'i64'                # integerType
+    | '&' 'mut'? type      # referenceType
     ;
 
 IDENTIFIER: [a-zA-Z_][a-zA-Z_0-9]*;
