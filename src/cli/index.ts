@@ -29,24 +29,11 @@ function evaluate(input: string): number {
         const tokenStream = new CommonTokenStream(lexer);
         const parser = new RustParser(tokenStream);
         
-        // Parse the input
-        debugLog('Creating parse tree');
+        // Parse the input and visit the tree
         const tree = parser.prog();
-        
-        // Visit the parse tree
-        debugLog('Visiting parse tree');
         evaluator.visit(tree);
-        
-        // Print VM instructions only in debug mode
-        if (DEBUG) {
-            console.log("\nVM Instructions:");
-            vm.printInstructions();
-        }
-        
-        // Run the VM only once
-        debugLog('Running VM');
+        // Run the VM
         const result = vm.run();
-        debugLog(`VM returned: ${result}`);
         
         return result;
     } catch (e) {
@@ -94,12 +81,6 @@ rl.on('line', (line) => {
         
         // Print only one result
         console.log(`Result: ${result}`);
-        
-        // Only print VM instructions in debug mode
-        if (DEBUG) {
-            console.log("VM Instructions:");
-            vm.printInstructions();
-        }
     } catch (e) {
         // Error already reported in evaluate function
     }
