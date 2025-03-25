@@ -5,6 +5,7 @@ import { ErrorNode, ParseTreeListener, ParserRuleContext, TerminalNode } from "a
 
 import { ProgContext } from "./RustParser.js";
 import { StatementContext } from "./RustParser.js";
+import { ReturnStatementContext } from "./RustParser.js";
 import { VariableDeclarationContext } from "./RustParser.js";
 import { FunctionDeclarationContext } from "./RustParser.js";
 import { ParamListContext } from "./RustParser.js";
@@ -20,11 +21,13 @@ import { IdentifierContext } from "./RustParser.js";
 import { DereferenceExprContext } from "./RustParser.js";
 import { ReferenceExprContext } from "./RustParser.js";
 import { EqualityOpContext } from "./RustParser.js";
+import { FunctionCallContext } from "./RustParser.js";
 import { UnaryOpContext } from "./RustParser.js";
 import { MulDivOpContext } from "./RustParser.js";
 import { ParenExprContext } from "./RustParser.js";
 import { IntContext } from "./RustParser.js";
 import { AddSubOpContext } from "./RustParser.js";
+import { ArgListContext } from "./RustParser.js";
 import { IntegerTypeContext } from "./RustParser.js";
 import { ReferenceTypeContext } from "./RustParser.js";
 
@@ -54,6 +57,16 @@ export class RustListener implements ParseTreeListener {
      * @param ctx the parse tree
      */
     exitStatement?: (ctx: StatementContext) => void;
+    /**
+     * Enter a parse tree produced by `RustParser.returnStatement`.
+     * @param ctx the parse tree
+     */
+    enterReturnStatement?: (ctx: ReturnStatementContext) => void;
+    /**
+     * Exit a parse tree produced by `RustParser.returnStatement`.
+     * @param ctx the parse tree
+     */
+    exitReturnStatement?: (ctx: ReturnStatementContext) => void;
     /**
      * Enter a parse tree produced by `RustParser.variableDeclaration`.
      * @param ctx the parse tree
@@ -217,6 +230,18 @@ export class RustListener implements ParseTreeListener {
      */
     exitEqualityOp?: (ctx: EqualityOpContext) => void;
     /**
+     * Enter a parse tree produced by the `functionCall`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     */
+    enterFunctionCall?: (ctx: FunctionCallContext) => void;
+    /**
+     * Exit a parse tree produced by the `functionCall`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     */
+    exitFunctionCall?: (ctx: FunctionCallContext) => void;
+    /**
      * Enter a parse tree produced by the `unaryOp`
      * labeled alternative in `RustParser.expression`.
      * @param ctx the parse tree
@@ -276,6 +301,16 @@ export class RustListener implements ParseTreeListener {
      * @param ctx the parse tree
      */
     exitAddSubOp?: (ctx: AddSubOpContext) => void;
+    /**
+     * Enter a parse tree produced by `RustParser.argList`.
+     * @param ctx the parse tree
+     */
+    enterArgList?: (ctx: ArgListContext) => void;
+    /**
+     * Exit a parse tree produced by `RustParser.argList`.
+     * @param ctx the parse tree
+     */
+    exitArgList?: (ctx: ArgListContext) => void;
     /**
      * Enter a parse tree produced by the `integerType`
      * labeled alternative in `RustParser.type`.

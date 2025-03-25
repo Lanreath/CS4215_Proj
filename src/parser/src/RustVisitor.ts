@@ -5,6 +5,7 @@ import { AbstractParseTreeVisitor } from "antlr4ng";
 
 import { ProgContext } from "./RustParser.js";
 import { StatementContext } from "./RustParser.js";
+import { ReturnStatementContext } from "./RustParser.js";
 import { VariableDeclarationContext } from "./RustParser.js";
 import { FunctionDeclarationContext } from "./RustParser.js";
 import { ParamListContext } from "./RustParser.js";
@@ -20,11 +21,13 @@ import { IdentifierContext } from "./RustParser.js";
 import { DereferenceExprContext } from "./RustParser.js";
 import { ReferenceExprContext } from "./RustParser.js";
 import { EqualityOpContext } from "./RustParser.js";
+import { FunctionCallContext } from "./RustParser.js";
 import { UnaryOpContext } from "./RustParser.js";
 import { MulDivOpContext } from "./RustParser.js";
 import { ParenExprContext } from "./RustParser.js";
 import { IntContext } from "./RustParser.js";
 import { AddSubOpContext } from "./RustParser.js";
+import { ArgListContext } from "./RustParser.js";
 import { IntegerTypeContext } from "./RustParser.js";
 import { ReferenceTypeContext } from "./RustParser.js";
 
@@ -49,6 +52,12 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      * @return the visitor result
      */
     visitStatement?: (ctx: StatementContext) => Result;
+    /**
+     * Visit a parse tree produced by `RustParser.returnStatement`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitReturnStatement?: (ctx: ReturnStatementContext) => Result;
     /**
      * Visit a parse tree produced by `RustParser.variableDeclaration`.
      * @param ctx the parse tree
@@ -146,6 +155,13 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitEqualityOp?: (ctx: EqualityOpContext) => Result;
     /**
+     * Visit a parse tree produced by the `functionCall`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitFunctionCall?: (ctx: FunctionCallContext) => Result;
+    /**
      * Visit a parse tree produced by the `unaryOp`
      * labeled alternative in `RustParser.expression`.
      * @param ctx the parse tree
@@ -180,6 +196,12 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      * @return the visitor result
      */
     visitAddSubOp?: (ctx: AddSubOpContext) => Result;
+    /**
+     * Visit a parse tree produced by `RustParser.argList`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitArgList?: (ctx: ArgListContext) => Result;
     /**
      * Visit a parse tree produced by the `integerType`
      * labeled alternative in `RustParser.type`.
