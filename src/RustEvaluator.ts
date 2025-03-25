@@ -164,6 +164,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         this.referenceMap.set(borrowerVar, targetVar);
     }
 
+    // Enhance your borrowImmutably method
     private borrowImmutably(targetVar: string, borrowerVar: string): void {
         const targetState = this.lookupVariable(targetVar);
         
@@ -259,6 +260,11 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         
         return targetState.state === BorrowState.BorrowedMutably && 
                targetState.borrowers.includes(refName);
+    }
+
+    // Add a method to check if a variable is a reference
+    private isReference(varName: string): boolean {
+        return this.referenceMap.has(varName);
     }
 
     // Virtual machine interaction
@@ -367,21 +373,34 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         }
     }
 
-    // Visit a parse tree produced by RustParser#referenceExpr
+// Visit a parse tree produced by RustParser#referenceExpr
     visitReferenceExpr(ctx: rp.ReferenceExprContext): number {
-        if (!ctx._target) {
-            throw new Error("Error in reference expression grammar");
+        // Get the target expression (what is being borrowed)
+        let targetExpr;
+        if (ctx._target) {
+            targetExpr = ctx._target;
+        } else if (ctx.expression) {
+            targetExpr = ctx.expression();
+        } else if (ctx.getChild && typeof ctx.getChild === 'function' && ctx.getChild(1)) {
+            targetExpr = ctx.getChild(1);
         }
         
-        if (!(ctx._target instanceof rp.IdentifierContext)) {
+        if (!targetExpr) {
+            throw new BorrowError("Invalid reference syntax");
+        }
+        
+        // Extract the variable name
+        let targetVar;
+        if (targetExpr instanceof rp.IdentifierContext) {
+            targetVar = targetExpr.getText();
+        } else if (typeof targetExpr.getText === 'function') {
+            targetVar = targetExpr.getText();
+        } else {
             throw new BorrowError("Can only borrow variables directly");
         }
         
-        const targetVar = ctx._target.getText();
-        
-        // Check if 'mut' is present in text
-        const exprText = ctx.getText();
-        const isMutable = exprText.includes('&mut ') || exprText.match(/&\s*mut\s+/);
+        // Check if we're dealing with a &mut or just &
+        const isMutable = ctx.getText().includes('&mut');
         
         // Generate a synthetic name for the reference
         const refName = `ref_to_${targetVar}_${Date.now()}`;
@@ -396,24 +415,48 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         // Create a variable to hold the reference
         const targetState = this.lookupVariable(targetVar);
         if (targetState) {
-            this.declareVariable(refName, false, targetState.value); // References themselves are immutable
+            // Reference variables are always immutable (unless explicitly re-declared as mut)
+            this.declareVariable(refName, false, targetState.value);
         }
         
-        // References don't push values onto the stack
-        return 0;
+        return 0; // References themselves don't have values for the VM
     }
 
     // Visit a parse tree produced by RustParser#dereferenceExpr
     visitDereferenceExpr(ctx: rp.DereferenceExprContext): number {
-        if (!(ctx._target instanceof rp.IdentifierContext)) {
+        // Get the reference expression (what is being dereferenced)
+        let refExpr;
+        if (ctx._target) {
+            refExpr = ctx._target;
+        } else if (ctx.expression) {
+            refExpr = ctx.expression();
+        } else if (ctx.getChild && typeof ctx.getChild === 'function' && ctx.getChild(1)) {
+            refExpr = ctx.getChild(1);
+        }
+        
+        if (!refExpr) {
+            throw new BorrowError("Invalid dereference syntax");
+        }
+        
+        // Extract the reference variable name
+        let refName;
+        if (refExpr instanceof rp.IdentifierContext) {
+            refName = refExpr.getText();
+        } else if (typeof refExpr.getText === 'function') {
+            refName = refExpr.getText();
+        } else {
             throw new BorrowError("Can only dereference reference variables directly");
         }
         
-        const refName = ctx._target.getText();
-        const targetVar = this.referenceMap.get(refName);
-        
-        if (!targetVar) {
+        // Check if this is actually a reference
+        if (!this.isReference(refName)) {
             throw new BorrowError(`${refName} is not a reference`);
+        }
+        
+        // Get the target variable that this reference points to
+        const targetVar = this.referenceMap.get(refName);
+        if (!targetVar) {
+            throw new BorrowError(`${refName} does not point to a valid variable`);
         }
         
         // Get the target value
@@ -430,17 +473,40 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
 
     // Visit a parse tree produced by RustParser#dereferenceAssignment
     visitDereferenceAssignment(ctx: rp.DereferenceAssignmentContext): number {
-        // Extract the reference name from *refName = value
-        if (!(ctx._target instanceof rp.DereferenceExprContext) ||
-            !(ctx._target._target instanceof rp.IdentifierContext)) {
+        // Get the dereference expression and the value
+        if (!ctx._target || !ctx._value) {
             throw new BorrowError("Invalid dereference assignment syntax");
         }
         
-        const refName = ctx._target._target.getText();
-        const targetVar = this.referenceMap.get(refName);
+        // Extract the reference name from the dereference expression
+        let refName;
         
-        if (!targetVar) {
+        // The structure depends on your grammar, so handle different possibilites
+        if (ctx._target instanceof rp.DereferenceExprContext) {
+            // Get the reference variable from the dereference expression
+            const refExpr = ctx._target._target || ctx._target.expression && ctx._target.expression();
+            
+            if (!refExpr) {
+                throw new BorrowError("Invalid dereference target");
+            }
+            
+            refName = refExpr.getText();
+        } else if (typeof ctx._target.getText === 'function') {
+            // Handle simple case where target is directly accessible
+            refName = ctx._target.getText().replace(/^\*/, ''); // Remove * prefix
+        } else {
+            throw new BorrowError("Cannot determine reference in dereference assignment");
+        }
+        
+        // Check if this variable is a reference
+        if (!this.isReference(refName)) {
             throw new BorrowError(`${refName} is not a reference`);
+        }
+        
+        // Get the target variable name
+        const targetVar = this.referenceMap.get(refName);
+        if (!targetVar) {
+            throw new BorrowError(`${refName} does not point to a valid variable`);
         }
         
         // Check if this is a mutable reference
@@ -448,7 +514,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
             throw new BorrowError(`Cannot assign through immutable reference ${refName}`);
         }
         
-        // Get the target
+        // Get the target state
         const targetState = this.lookupVariable(targetVar);
         if (!targetState) {
             throw new BorrowError(`Target of reference ${refName} no longer exists`);
@@ -466,7 +532,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
             this.vm.storeValue(addr, value);
         }
         
-        return 0;
+        return value;
     }
 
     // Visit a parse tree produced by RustParser#block
