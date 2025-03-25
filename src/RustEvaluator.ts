@@ -49,6 +49,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     private variableAddresses: Map<string, number>;
     private referenceMap: Map<string, string>; // Maps reference names to their target
     private scopes: string[][]; // Stack of scopes for tracking variable lifetimes
+    private lastCreatedReference: string | undefined; // Store the last created reference
 
     // Add constructor to accept a VM instance
     constructor(vm?: VirtualMachine) {
@@ -313,19 +314,70 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         const name = ctx._name.text;
         const isMutable = ctx._mutFlag ? true : false;
         
-        // Evaluate the expression to get the value
-        const value = this.visit(ctx._value);
+        console.log(`Declaring variable: ${name}, mutable: ${isMutable}`);
         
-        // Declare the variable in current scope
-        this.declareVariable(name, isMutable, value);
+        // Check if this is a reference type
+        const isRefType = ctx.type && ctx.type().getText().includes('&');
         
-        // Handle ownership transfer if the value is a variable
-        if (ctx._value instanceof rp.IdentifierContext) {
-            const sourceVar = ctx._value.getText();
+        // Check if this is a reference expression
+        const isRefExpr = ctx._value instanceof rp.ReferenceExprContext;
+        
+        if (isRefExpr && isRefType) {
+            // First visit the expression to create the reference
+            this.visit(ctx._value);
             
-            // Only move if it's not a reference
-            if (!this.referenceMap.has(sourceVar)) {
-                this.moveVariable(sourceVar, name);
+            const refName = this.lastCreatedReference;
+            if (!refName) {
+                throw new BorrowError(`Failed to create reference for ${name}`);
+            }
+            
+            // Copy the reference mapping to the new variable name
+            const targetVar = this.referenceMap.get(refName);
+            if (targetVar) {
+                console.log(`Creating reference alias: ${name} -> ${targetVar}`);
+                
+                // Register the new reference name in the current scope
+                this.currentScope().push(name);
+                
+                // Add it to the reference map
+                this.referenceMap.set(name, targetVar);
+                
+                // Get the target's state
+                const targetState = this.lookupVariable(targetVar);
+                if (targetState) {
+                    // Update borrowers list
+                    targetState.borrowers.push(name);
+                    
+                    // Create a state for the new reference variable
+                    const refState = new VariableState(false, targetState.value);
+                    this.variableStates.set(name, refState);
+                    
+                    // Allocate memory in VM
+                    const address = this.vm.allocateVariable();
+                    this.variableAddresses.set(name, address);
+                    this.vm.storeValue(address, targetState.value);
+                }
+                
+                // Clear the lastCreatedReference after use
+                this.lastCreatedReference = null;
+            } else {
+                throw new BorrowError(`Invalid reference creation`);
+            }
+        } else {
+            // Normal variable declaration with a value
+            const value = this.visit(ctx._value);
+            
+            // Declare the variable in current scope
+            this.declareVariable(name, isMutable, value);
+            
+            // Handle ownership transfer if the value is a variable
+            if (ctx._value instanceof rp.IdentifierContext) {
+                const sourceVar = ctx._value.getText();
+                
+                // Only move if it's not a reference
+                if (!this.referenceMap.has(sourceVar)) {
+                    this.moveVariable(sourceVar, name);
+                }
             }
         }
         
@@ -419,7 +471,13 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
             this.declareVariable(refName, false, targetState.value);
         }
         
-        return 0; // References themselves don't have values for the VM
+        // Store the reference name in a property so we can access it in variableDeclaration
+        this.lastCreatedReference = refName;
+        
+        // Push a dummy value for the VM
+        this.vm.pushInstruction("LDCN", 0);
+        
+        return 0; // Return a number per the visitor contract
     }
 
     // Visit a parse tree produced by RustParser#dereferenceExpr
