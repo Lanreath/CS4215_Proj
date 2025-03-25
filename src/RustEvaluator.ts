@@ -525,18 +525,18 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     // Methods push values onto the VM stack
     visitInt(ctx: rp.IntContext): number {
         const value = parseInt(ctx.INT().getText());
-        console.log(`Visiting integer: ${value}`);
+        //console.log(`Visiting integer: ${value}`);
         this.vm.pushInstruction("LDCN", value);
         return value;
     }
 
     visitParenExpr(ctx: rp.ParenExprContext): number {
-        console.log(`Visiting parenthesized expression`);
+        //console.log(`Visiting parenthesized expression`);
         return this.visit(ctx.expression());
     }
 
     visitMulDivOp(ctx: rp.MulDivOpContext): number {
-        console.log(`Visiting multiplication/division operation`);
+        //console.log(`Visiting multiplication/division operation`);
         
         // Evaluate the left expression
         this.visit(ctx._left);
@@ -556,7 +556,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     }
 
     visitAddSubOp(ctx: rp.AddSubOpContext): number {
-        console.log(`Visiting addition/subtraction operation`);
+        //console.log(`Visiting addition/subtraction operation`);
         
         // First evaluate the left expression
         this.visit(ctx._left);
