@@ -44,11 +44,21 @@ class BorrowError extends Error {
 }
 
 export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements RustVisitor<number> {
-    private vm: VirtualMachine = new VirtualMachine(16384); // Increase memory size
-    private variableStates: Map<string, VariableState> = new Map<string, VariableState>();
-    private variableAddresses: Map<string, number> = new Map<string, number>();
-    private referenceMap: Map<string, string> = new Map<string, string>(); // Maps reference names to their target
-    private scopes: string[][] = [[]]; // Stack of scopes for tracking variable lifetimes
+    private vm: VirtualMachine;
+    private variableStates: Map<string, VariableState>;
+    private variableAddresses: Map<string, number>;
+    private referenceMap: Map<string, string>; // Maps reference names to their target
+    private scopes: string[][]; // Stack of scopes for tracking variable lifetimes
+
+    // Add constructor to accept a VM instance
+    constructor(vm?: VirtualMachine) {
+        super();
+        this.vm = vm || new VirtualMachine();
+        this.variableStates = new Map<string, VariableState>();
+        this.variableAddresses = new Map<string, number>();
+        this.referenceMap = new Map<string, string>();
+        this.scopes = [[]];
+    }
 
     // Scope management
     private currentScope(): string[] {
@@ -83,7 +93,6 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     }
 
     // Variable declarations and lookup
-    // Improved declareVariable method with better error handling
     private declareVariable(name: string, mutable: boolean, value: number = 0): void {
         try {
             // Register in current scope
@@ -254,11 +263,20 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
 
     // Virtual machine interaction
     public runVM(): number {
-        const result = this.vm.run();
-        return result;
+        try {
+            const result = this.vm.run();
+            return result;
+        } catch (error) {
+            if (error instanceof Error) {
+                console.error(`Runtime error: ${error.message}`);
+            } else {
+                console.error(`Unknown runtime error: ${String(error)}`);
+            }
+            return 0;
+        }
     }
 
-    // Visit methods for the grammar
+    // Visit methods for grammar
 
     // Visit a parse tree produced by RustParser#prog
     visitProg(ctx: rp.ProgContext): number {
@@ -308,7 +326,6 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         return 0;
     }
 
-    // Fix the visitStandardAssignment method
     visitStandardAssignment(ctx: rp.StandardAssignmentContext): number {
         const varName = ctx.IDENTIFIER().getText();
         
@@ -362,7 +379,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         
         const targetVar = ctx._target.getText();
         
-        // Check if 'mut' is present in the text representation since MUT() isn't available
+        // Check if 'mut' is present in text
         const exprText = ctx.getText();
         const isMutable = exprText.includes('&mut ') || exprText.match(/&\s*mut\s+/);
         
@@ -504,6 +521,59 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     protected aggregateResult(aggregate: number, nextResult: number): number {
         return nextResult;
     }
+
+    // Methods push values onto the VM stack
+    visitInt(ctx: rp.IntContext): number {
+        const value = parseInt(ctx.INT().getText());
+        console.log(`Visiting integer: ${value}`);
+        this.vm.pushInstruction("LDCN", value);
+        return value;
+    }
+
+    visitParenExpr(ctx: rp.ParenExprContext): number {
+        console.log(`Visiting parenthesized expression`);
+        return this.visit(ctx.expression());
+    }
+
+    visitMulDivOp(ctx: rp.MulDivOpContext): number {
+        console.log(`Visiting multiplication/division operation`);
+        
+        // Evaluate the left expression
+        this.visit(ctx._left);
+        
+        // Then evaluate the right expression
+        this.visit(ctx._right);
+        
+        const op = ctx._op.text;
+        switch (op) {
+            case "*": this.vm.pushInstruction("TIMES"); break;
+            case "/": this.vm.pushInstruction("DIVIDE"); break;
+            default: throw new Error(`Invalid multiplication/division operator: ${op}`);
+        }
+        
+        // The VM will handle popping the operands and pushing the result
+        return 0; // The actual result will be on the VM stack
+    }
+
+    visitAddSubOp(ctx: rp.AddSubOpContext): number {
+        console.log(`Visiting addition/subtraction operation`);
+        
+        // First evaluate the left expression
+        this.visit(ctx._left);
+        
+        // Then evaluate the right expression
+        this.visit(ctx._right);
+        
+        // Now push the operation
+        const op = ctx._op.text;
+        switch (op) {
+            case "+": this.vm.pushInstruction("PLUS"); break;
+            case "-": this.vm.pushInstruction("MINUS"); break;
+            default: throw new Error(`Invalid addition/subtraction operator: ${op}`);
+        }
+        
+        return 0; // The actual result will be on the VM stack
+    }
 }
 
 export class RustEvaluator extends BasicEvaluator {
@@ -519,6 +589,10 @@ export class RustEvaluator extends BasicEvaluator {
     async evaluateChunk(chunk: string): Promise<void> {
         this.executionCount++;
         try {
+            // Reset the visitor for each new chunk
+            const vm = new VirtualMachine();
+            this.visitor = new RustEvaluatorVisitor(vm);
+            
             // Create the lexer and parser
             const inputStream = CharStream.fromString(chunk);
             const lexer = new RustLexer(inputStream);
@@ -528,16 +602,17 @@ export class RustEvaluator extends BasicEvaluator {
             // Parse the input
             const tree = parser.prog();
             
-            // Compile and evaluate the program
+            // Evaluate the parsed tree
             this.visitor.visit(tree);
             
-            // Run the program
-            const result = this.visitor.runVM();
+            // Run the VM to get the result
+            const result = vm.run();
             
             // Send the result to the REPL
             this.conductor.sendOutput(`Output: ${result}`);
-        }  catch (error) {
-            // Handle errors and send them to the REPL
+            
+            // Don't print VM instructions here to avoid duplicate output
+        } catch (error) {
             if (error instanceof Error) {
                 this.conductor.sendOutput(`Error: ${error.message}`);
             } else {

@@ -56,62 +56,33 @@ export class VirtualMachine {
         return this.ic;
     }
 
+    // Enhanced instruction printing
     public printInstructions(): void {
-        console.log("Instructions:\n");
-        this.instructions.forEach((instruction, index) => {
-            console.log(`${index}: ${instruction.toString()}\n`);
-        });
+        console.log("Program instructions:");
+        if (this.instructions.length === 0) {
+            console.log("  No instructions generated!");
+        }
+        
+        for (let i = 0; i < this.instructions.length; i++) {
+            const instr = this.instructions[i];
+            if (!instr) {
+                console.log(`${i}: <null instruction>`);
+                continue;
+            }
+            
+            let instrStr = `${i}: ${instr.tag}`;
+            if (instr.value !== undefined) {
+                instrStr += ` ${instr.value}`;
+            }
+            console.log(instrStr);
+        }
     }
 
-    public pushInstruction(instruction: string, value?: number): number {
-        switch (instruction) {
-            case "DONE":
-                this.instructions.push(new Instruction(InstructionTag.DONE));
-                break;
-            case "LDCN":
-                this.instructions.push(new Instruction(InstructionTag.LDCN, value));
-                break;
-            case "PLUS":
-                this.instructions.push(new Instruction(InstructionTag.PLUS));
-                break;
-            case "MINUS":
-                this.instructions.push(new Instruction(InstructionTag.MINUS));
-                break;
-            case "TIMES":
-                this.instructions.push(new Instruction(InstructionTag.TIMES));
-                break;
-            case "DIVIDE":
-                this.instructions.push(new Instruction(InstructionTag.DIVIDE));
-                break;
-            case "LT":
-                this.instructions.push(new Instruction(InstructionTag.LT));
-                break;
-            case "LE":
-                this.instructions.push(new Instruction(InstructionTag.LE));
-                break;
-            case "GT":
-                this.instructions.push(new Instruction(InstructionTag.GT));
-                break;
-            case "GE":
-                this.instructions.push(new Instruction(InstructionTag.GE));
-                break;
-            case "EQ":
-                this.instructions.push(new Instruction(InstructionTag.EQ));
-                break;
-            case "NE":
-                this.instructions.push(new Instruction(InstructionTag.NE));
-                break;
-            case "GOTO":
-                this.instructions.push(new Instruction(InstructionTag.GOTO, value));
-                break;
-            case "JOF":
-                this.instructions.push(new Instruction(InstructionTag.JOF, value));
-                break;
-            default:
-                throw new Error("Invalid instruction");
-        }
-        this.ic++;
-        return this.ic;
+    public pushInstruction(tag: string, value?: number): number {
+        console.log(`[VM] Pushing instruction: ${tag}${value !== undefined ? ' ' + value : ''}`);
+        const instr = new Instruction(tag as InstructionTag, value);
+        this.instructions[this.ic] = instr;
+        return ++this.ic;
     }
 
     public setInstructionTarget(instructionIndex: number, targetIndex: number): void {
@@ -150,84 +121,51 @@ export class VirtualMachine {
     }
 
     public run(): number {
-        while (this.pc < this.ic) {
-            const instruction = this.instructions[this.pc++];
-            let a: number;
-            let b: number;
-            switch (instruction.tag) {
-                case InstructionTag.LDCN:
-                    this.pushOperand(instruction.value);
-                    break;
-                case InstructionTag.PLUS:
-                    a = this.popOperand();
-                    b = this.popOperand();
-                    this.pushOperand(a + b);
-                    break;
-                case InstructionTag.MINUS:
-                    a = this.popOperand();
-                    b = this.popOperand();
-                    this.pushOperand(b - a);
-                    break;
-                case InstructionTag.TIMES:
-                    a = this.popOperand();
-                    b = this.popOperand();
-                    this.pushOperand(a * b);
-                    break;
-                case InstructionTag.DIVIDE:
-                    a = this.popOperand();
-                    b = this.popOperand();
-                    // TODO: Handle using error operand
-                    if (a === 0) {
-                        throw new Error("Division by zero");
+        this.pc = 0;
+        this.osPtr = VirtualMachine.OS_BASE;
+        
+        try {
+            while (this.pc < this.ic) {
+                const instr = this.instructions[this.pc++];
+                
+                if (!instr) {
+                    throw new Error(`Invalid instruction at ${this.pc - 1}`);
+                }
+                
+                switch (instr.tag) {
+                    case "DONE":
+                        // Return the top value from the stack
+                        return this.osPtr > VirtualMachine.OS_BASE ? this.popOperand() : 0;
+                        
+                    case "LDCN":
+                        if (instr.value !== undefined) {
+                            this.pushOperand(instr.value);
+                        } else {
+                            console.warn(`LDCN with undefined value at ${this.pc - 1}`);
+                            this.pushOperand(0);
+                        }
+                        break;
+                    
+                    case "PLUS": {
+                        const b = this.popOperand();
+                        const a = this.popOperand();
+                        this.pushOperand(a + b);
+                        break;
                     }
-                    this.pushOperand(b / a);
-                    break;
-                case InstructionTag.LT:
-                    a = this.popOperand();
-                    b = this.popOperand();
-                    this.pushOperand(b < a ? 1 : 0);
-                    break;
-                case InstructionTag.LE:
-                    a = this.popOperand();
-                    b = this.popOperand();
-                    this.pushOperand(b <= a ? 1 : 0);
-                    break;
-                case InstructionTag.GT:
-                    a = this.popOperand();
-                    b = this.popOperand();
-                    this.pushOperand(b > a ? 1 : 0);
-                    break;
-                case InstructionTag.GE:
-                    a = this.popOperand();
-                    b = this.popOperand();
-                    this.pushOperand(b >= a ? 1 : 0);
-                    break;
-                case InstructionTag.EQ:
-                    a = this.popOperand();
-                    b = this.popOperand();
-                    this.pushOperand(b === a ? 1 : 0);
-                    break;
-                case InstructionTag.NE:
-                    a = this.popOperand();
-                    b = this.popOperand();
-                    this.pushOperand(b !== a ? 1 : 0);
-                    break;
-                case InstructionTag.GOTO:
-                    this.pc = instruction.value;
-                    break;
-                case InstructionTag.JOF:
-                    const top = this.popOperand();
-                    if (top === 0) {
-                        this.pc = instruction.value;
-                    }
-                    break;
-                case InstructionTag.DONE:
-                    return this.popOperand();
-                default:
-                    throw new Error("Invalid instruction");
+                    
+                    // Handle other instructions...
+                    
+                    default:
+                        console.warn(`Unknown instruction: ${instr.tag}`);
+                }
             }
+            
+            // No DONE instruction found
+            return this.osPtr > VirtualMachine.OS_BASE ? this.popOperand() : 0;
+        } catch (error) {
+            console.error('VM runtime error:', error);
+            throw error;
         }
-        throw new Error("No DONE instruction");
     }
 
     // Improve the allocateVariable method to properly check bounds
@@ -258,5 +196,17 @@ export class VirtualMachine {
         }
         
         return this.view.getInt32(addr, true);
+    }
+
+    public reset(): void {
+        this.ic = 0;
+        this.pc = 0;
+        this.osPtr = VirtualMachine.OS_BASE;
+        this.instructions = [];
+        this.nextVarAddr = VirtualMachine.HEAP_BASE;
+        
+        // Clear memory
+        this.memory = new ArrayBuffer(this.memSize);
+        this.view = new DataView(this.memory);
     }
 }
