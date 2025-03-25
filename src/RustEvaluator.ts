@@ -406,45 +406,42 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         return 0;
     }
 
+    // Visit a parse tree produced by RustParser#standardAssignment
     visitStandardAssignment(ctx: rp.StandardAssignmentContext): number {
-        const varName = ctx.IDENTIFIER().getText();
+        const target = ctx.IDENTIFIER().getText();
+        console.log(`Assignment to ${target}`);
         
-        try {
-            // Check if we can write to this variable
-            this.checkWriteAccess(varName);
-            
-            // Evaluate the expression
-            const value = this.visit(ctx.expression());
-            
-            // Handle ownership transfer if the value is a variable
-            if (ctx.expression() instanceof rp.IdentifierContext) {
-                const sourceVar = ctx.expression().getText();
-                
-                // Only move if it's not a reference
-                if (!this.referenceMap.has(sourceVar)) {
-                    this.moveVariable(sourceVar, varName);
-                }
-            }
-            
-            // Update the variable's value - safely
-            const state = this.lookupVariable(varName);
-            if (state) {
-                state.value = value;
-                
-                // Update in VM memory
-                const addr = this.variableAddresses.get(varName);
-                if (addr !== undefined) {
-                    this.vm.storeValue(addr, value);
-                } else {
-                    console.error(`Missing address for variable ${varName}`);
-                }
-            }
-            
-            return 0;
-        } catch (error) {
-            console.error(`Error in assignment to ${varName}: ${error}`);
-            throw error; // Re-throw to propagate the error
+        // Check if the variable exists and is mutable
+        const targetState = this.lookupVariable(target);
+        if (!targetState) {
+            throw new Error(`Cannot assign to undefined variable: ${target}`);
         }
+        
+        this.checkWriteAccess(target);
+        
+        // Check if the variable is currently borrowed
+        if (targetState.state === BorrowState.BorrowedImmutably) {
+            throw new Error(`Cannot assign to ${target} while it is borrowed`);
+        }
+        
+        if (targetState.state === BorrowState.BorrowedMutably) {
+            throw new Error(`Cannot assign to ${target} while it is mutably borrowed`);
+        }
+        
+        // Evaluate the expression
+        const value = this.visit(ctx.expression());
+        console.log(`Assigning value ${value} to ${target}`);
+        
+        // Update the variable's value
+        targetState.value = value;
+        
+        // Update in VM memory
+        const addr = this.variableAddresses.get(target);
+        if (addr !== undefined) {
+            this.vm.storeValue(addr, value);
+        }
+        
+        return value;
     }
 
 // Visit a parse tree produced by RustParser#referenceExpr
@@ -875,24 +872,30 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         return 0; // The actual result will be on the VM stack
     }
 
+    // Visit a parse tree produced by RustParser#addSubOp
     visitAddSubOp(ctx: rp.AddSubOpContext): number {
-        //console.log(`Visiting addition/subtraction operation`);
+        // Evaluate left and right operands
+        const left = this.visit(ctx._left);
+        const right = this.visit(ctx._right);
         
-        // First evaluate the left expression
-        this.visit(ctx._left);
-        
-        // Then evaluate the right expression
-        this.visit(ctx._right);
-        
-        // Now push the operation
+        // Get the operator
         const op = ctx._op.text;
-        switch (op) {
-            case "+": this.vm.pushInstruction("PLUS"); break;
-            case "-": this.vm.pushInstruction("MINUS"); break;
-            default: throw new Error(`Invalid addition/subtraction operator: ${op}`);
+        
+        console.log(`Calculating: ${left} ${op} ${right}`);
+        
+        // Perform the operation
+        let result: number;
+        if (op === '+') {
+            result = left + right;
+        } else if (op === '-') {
+            result = left - right;
+        } else {
+            throw new Error(`Unknown arithmetic operator: ${op}`);
         }
         
-        return 0; // The actual result will be on the VM stack
+        console.log(`Result of ${left} ${op} ${right} = ${result}`);
+        
+        return result;
     }
 
     private functionDefinitions: Map<string, rp.FunctionDeclarationContext> = new Map();
@@ -953,28 +956,112 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
             throw new Error("While statement must have a condition and a block");
         }
         
+        console.log(`Starting while loop execution with condition: ${ctx._condition.getText()}`);
+        
         let result = 0;
+        let maxIterations = 1000; // Safety limit
+        let iterations = 0;
         
         // Execute the loop as long as the condition is true
-        while (true) {
-            // Evaluate the condition
-            const conditionValue = this.visit(ctx._condition);
+        while (iterations < maxIterations) {
+            iterations++;
             
-            // Exit the loop if condition is false
+            // Evaluate the condition
+            console.log(`[Iteration ${iterations}] Evaluating condition: ${ctx._condition.getText()}`);
+            const conditionValue = this.visit(ctx._condition);
+            console.log(`[Iteration ${iterations}] Condition evaluated to: ${conditionValue}`);
+            
+            // Exit the loop if condition is false (0 in our semantics)
             if (conditionValue === 0) {
+                console.log(`[Iteration ${iterations}] Condition is false, exiting loop`);
                 break;
             }
             
             // Execute the loop body
+            console.log(`[Iteration ${iterations}] Executing loop body`);
             result = this.visit(ctx._loopBlock);
+            
+            // Debug variables after loop body execution
+            if (ctx._condition.getText().includes('<') || ctx._condition.getText().includes('>') || 
+                ctx._condition.getText().includes('==') || ctx._condition.getText().includes('!=')) {
+                
+                const parts = ctx._condition.getText().split(/[<>=!]+/);
+                if (parts.length >= 2) {
+                    const leftVar = parts[0].trim();
+                    const rightVar = parts[1].trim();
+                    
+                    console.log(`[Debug] Variables in condition after iteration ${iterations}:`);
+                    if (this.variableStates.has(leftVar)) {
+                        console.log(`  ${leftVar} = ${this.variableStates.get(leftVar)?.value}`);
+                    }
+                    if (this.variableStates.has(rightVar)) {
+                        console.log(`  ${rightVar} = ${this.variableStates.get(rightVar)?.value}`);
+                    }
+                }
+            }
             
             // Check for early return from within loop
             if (this.isReturning) {
+                console.log(`[Iteration ${iterations}] Early return detected, breaking loop`);
                 break;
             }
         }
         
+        if (iterations >= maxIterations) {
+            throw new Error(`Potential infinite loop detected: exceeded ${maxIterations} iterations`);
+        }
+        
+        console.log(`While loop completed after ${iterations} iterations with result: ${result}`);
         return result;
+    }
+
+    // Visit a parse tree produced by RustParser#equalityOp
+    visitEqualityOp(ctx: rp.EqualityOpContext): number {
+                const left = this.visit(ctx._left);
+        const right = this.visit(ctx._right);
+                const op = ctx._op.text;
+        
+        console.log(`Comparing ${left} ${op} ${right}`);
+        
+        // Ensure operands are numbers
+        const leftNum = Number(left);
+        const rightNum = Number(right);
+        
+        // Check for NaN
+        if (isNaN(leftNum) || isNaN(rightNum)) {
+            console.error(`Invalid comparison: ${left} ${op} ${right} - one or both operands are not numbers`);
+            return 0; // Default to false for invalid comparisons
+        }
+        
+        // Perform the comparison
+        let result = false;
+        switch (op) {
+            case '>':
+                result = leftNum > rightNum;
+                break;
+            case '>=':
+                result = leftNum >= rightNum;
+                break;
+            case '<':
+                result = leftNum < rightNum;
+                break;
+            case '<=':
+                result = leftNum <= rightNum;
+                break;
+            case '==':
+                result = leftNum === rightNum;
+                break;
+            case '!=':
+                result = leftNum !== rightNum;
+                break;
+            default:
+                throw new Error(`Unknown comparison operator: ${op}`);
+        }
+        
+        const numResult = result ? 1 : 0;
+        console.log(`Comparison result: ${left} ${op} ${right} = ${result} (${numResult})`);
+        
+        return numResult;
     }
 }
 
