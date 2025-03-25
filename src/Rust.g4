@@ -9,7 +9,12 @@ statement
     | block
     | ifStatement
     | whileStatement
+    | returnStatement     
     | expressionStatement
+    ;
+
+returnStatement
+    : 'return' expression? ';'
     ;
 
 variableDeclaration
@@ -63,8 +68,13 @@ expression
     | left=expression op=('*'|'/') right=expression    # mulDivOp
     | left=expression op=('+'|'-') right=expression    # addSubOp
     | '-' operand=expression                           # unaryOp
+    | IDENTIFIER '(' argList? ')'                      # functionCall   
     | IDENTIFIER                                       # identifier
     | INT                                              # int
+    ;
+
+argList
+    : expression (',' expression)*
     ;
 
 // Updated to include reference types
