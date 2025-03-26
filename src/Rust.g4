@@ -9,7 +9,8 @@ statement
     | block
     | ifStatement
     | whileStatement
-    | returnStatement     
+    | returnStatement
+    | breakStatement       
     | expressionStatement
     ;
 
@@ -81,6 +82,10 @@ argList
 type
     : 'i64'                # integerType
     | '&' 'mut'? type      # referenceType
+    ;
+
+breakStatement
+    : 'break' ';'
     ;
 
 IDENTIFIER: [a-zA-Z_][a-zA-Z_0-9]*;

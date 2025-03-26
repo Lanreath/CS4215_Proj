@@ -30,6 +30,7 @@ import { AddSubOpContext } from "./RustParser.js";
 import { ArgListContext } from "./RustParser.js";
 import { IntegerTypeContext } from "./RustParser.js";
 import { ReferenceTypeContext } from "./RustParser.js";
+import { BreakStatementContext } from "./RustParser.js";
 
 
 /**
@@ -335,6 +336,16 @@ export class RustListener implements ParseTreeListener {
      * @param ctx the parse tree
      */
     exitReferenceType?: (ctx: ReferenceTypeContext) => void;
+    /**
+     * Enter a parse tree produced by `RustParser.breakStatement`.
+     * @param ctx the parse tree
+     */
+    enterBreakStatement?: (ctx: BreakStatementContext) => void;
+    /**
+     * Exit a parse tree produced by `RustParser.breakStatement`.
+     * @param ctx the parse tree
+     */
+    exitBreakStatement?: (ctx: BreakStatementContext) => void;
 
     visitTerminal(node: TerminalNode): void {}
     visitErrorNode(node: ErrorNode): void {}

@@ -48,11 +48,13 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     private variableStates: Map<string, VariableState>;
     private variableAddresses: Map<string, number>;
     private referenceMap: Map<string, string>; // Maps reference names to their target
-    private scopes: string[][]; // Stack of scopes for tracking variable lifetimes
     private lastCreatedReference: string | undefined; // Store the last created reference
     private functionReturnValue: number | null = null;
     private isReturning: boolean = false;
     private currentFunctionReturnType: string | null = null;
+
+    private scopes: Map<string, any>[] = [new Map()]; // Stack of scopes
+    private currentBreakFlag: boolean = false; // For break statements
 
     // Add constructor to accept a VM instance
     constructor(vm?: VirtualMachine) {
@@ -61,82 +63,65 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         this.variableStates = new Map<string, VariableState>();
         this.variableAddresses = new Map<string, number>();
         this.referenceMap = new Map<string, string>();
-        this.scopes = [[]];
-    }
-
-    // Scope management
-    private currentScope(): string[] {
-        return this.scopes[this.scopes.length - 1];
+        this.scopes = [new Map()];
     }
 
     private enterScope(): void {
-        this.scopes.push([]);
+        this.scopes.push(new Map());
+        console.log(`[DEBUG] Entered new scope. Scope depth: ${this.scopes.length}`);
     }
 
     private exitScope(): void {
-        const scope = this.scopes.pop();
-        if (!scope) return;
+        if (this.scopes.length <= 1) {
+            console.log("[WARNING] Attempted to exit global scope");
+            return;
+        }
         
-        // Process each variable in the scope
-        for (const name of scope) {
-            const state = this.variableStates.get(name);
-            
-            if (state) {
-                // Release any borrows held by this variable
-                if (this.referenceMap.has(name)) {
-                    const targetVar = this.referenceMap.get(name);
-                    if (targetVar) {
-                        const targetState = this.variableStates.get(targetVar);
-                        if (targetState) {
-                            // Remove this reference from the borrowers list
-                            targetState.borrowers = targetState.borrowers.filter(b => b !== name);
-                            
-                            // If no more borrowers, update the state
-                            if (targetState.borrowers.length === 0) {
-                                if (targetState.state === BorrowState.BorrowedImmutably) {
-                                    targetState.state = BorrowState.Owned;
-                                } else if (targetState.state === BorrowState.BorrowedMutably) {
-                                    targetState.state = BorrowState.Owned;
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Remove the reference mapping
-                    this.referenceMap.delete(name);
-                }
-                
-                // Clean up variable state
-                this.variableStates.delete(name);
+        const currentScope = this.scopes.pop();
+        console.log(`[DEBUG] Exiting scope. Variables in scope: ${Array.from(currentScope?.keys() || []).join(', ')}`);
+        
+        // Clean up variables in this scope
+        for (const [name, _] of currentScope || []) {
+            // If this is a reference, release the borrow
+            if (this.referenceMap.has(name)) {
+                this.releaseBorrow(name);
+                this.referenceMap.delete(name);
             }
             
-            // Clean up memory address
+            // Remove the variable state and address
+            this.variableStates.delete(name);
             this.variableAddresses.delete(name);
         }
     }
 
-    // Variable declarations and lookup
-    private declareVariable(name: string, mutable: boolean, value: number = 0): void {
-        try {
-            // Register in current scope
-            this.currentScope().push(name);
-            
-            // Create variable state
-            const state = new VariableState(mutable, value);
-            this.variableStates.set(name, state);
-            
-            // Allocate memory in VM - handle this properly
-            const address = this.vm.allocateVariable();
-            this.variableAddresses.set(name, address);
-            this.vm.storeValue(address, value);
-        } catch (error) {
-            console.error(`Error allocating variable ${name}: ${error}`);
-            throw error; // Re-throw to propagate the error
+    // Lookup a variable across all scopes (inner to outer)
+    private lookupVariable(name: string): VariableState | undefined {
+        // Check each scope from innermost to outermost
+        for (let i = this.scopes.length - 1; i >= 0; i--) {
+            const scope = this.scopes[i];
+            if (scope.has(name)) {
+                return this.variableStates.get(name);
+            }
         }
+        return undefined;
     }
 
-    private lookupVariable(name: string): VariableState | undefined {
-        return this.variableStates.get(name);
+    // Declare a variable in the current scope
+    private declareVariable(name: string, mutable: boolean, value: number = 0): void {
+        // Register in current scope
+        const currentScope = this.scopes[this.scopes.length - 1];
+        currentScope.set(name, true);
+        
+        // Create variable state
+        const state = new VariableState(mutable, value);
+        this.variableStates.set(name, state);
+        
+        // Allocate memory in VM
+        const address = this.vm.allocateVariable();
+        this.variableAddresses.set(name, address);
+        this.vm.storeValue(address, value);
+        
+        console.log(`[DEBUG] Declared variable: ${name}, mutable: ${mutable}, value: ${value}`);
     }
 
     // Ownership management
@@ -313,7 +298,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         this.variableStates.clear();
         this.variableAddresses.clear();
         this.referenceMap.clear();
-        this.scopes = [[]];
+        this.scopes = [new Map()];
         
         // Visit all statements
         for (const statement of ctx.statement()) {
@@ -359,7 +344,8 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
                 console.log(`Creating reference alias: ${name} -> ${targetVar}`);
                 
                 // Register the new reference name in the current scope
-                this.currentScope().push(name);
+                const currentScope = this.scopes[this.scopes.length - 1];
+                currentScope.set(name, true);
                 
                 // Add it to the reference map
                 this.referenceMap.set(name, targetVar);
@@ -799,7 +785,8 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
                     // Create a variable state for the parameter
                     const paramState = new VariableState(false, targetState.value);
                     this.variableStates.set(paramName, paramState);
-                    this.currentScope().push(paramName);
+                    const currentScope = this.scopes[this.scopes.length - 1];
+                    currentScope.set(paramName, true);
                     
                     // Add to reference map
                     this.referenceMap.set(paramName, targetVar);
@@ -852,24 +839,42 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         return this.visit(ctx.expression());
     }
 
+    // Visit a parse tree produced by RustParser#mulDivOp
     visitMulDivOp(ctx: rp.MulDivOpContext): number {
-        //console.log(`Visiting multiplication/division operation`);
+        // Get the left and right operands
+        const left = this.visit(ctx._left);
+        const right = this.visit(ctx._right);
         
-        // Evaluate the left expression
-        this.visit(ctx._left);
-        
-        // Then evaluate the right expression
-        this.visit(ctx._right);
-        
+        // Get the operator
         const op = ctx._op.text;
-        switch (op) {
-            case "*": this.vm.pushInstruction("TIMES"); break;
-            case "/": this.vm.pushInstruction("DIVIDE"); break;
-            default: throw new Error(`Invalid multiplication/division operator: ${op}`);
+        
+        console.log(`[DEBUG] Performing ${op} operation: ${left} ${op} ${right}`);
+        
+        let result: number;
+        
+        // Perform the operation
+        if (op === '*') {
+            result = left * right;
+            this.vm.pushInstruction("TIMES");
+        } else if (op === '/') {
+            // Check for division by zero
+            if (right === 0) {
+                throw new Error("Division by zero");
+            }
+            
+            // In Rust, integer division truncates toward zero
+            result = Math.trunc(left / right);
+            this.vm.pushInstruction("DIVIDE");
+        } else {
+            throw new Error(`Unknown operator: ${op}`);
         }
         
-        // The VM will handle popping the operands and pushing the result
-        return 0; // The actual result will be on the VM stack
+        console.log(`[DEBUG] Result of ${left} ${op} ${right} = ${result}`);
+        
+        // Push the result to the VM
+        this.vm.pushInstruction("LDCN", result);
+        
+        return result;
     }
 
     // Visit a parse tree produced by RustParser#addSubOp
@@ -956,62 +961,57 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
             throw new Error("While statement must have a condition and a block");
         }
         
-        console.log(`Starting while loop execution with condition: ${ctx._condition.getText()}`);
+        console.log(`[DEBUG] Starting while loop`);
         
         let result = 0;
-        let maxIterations = 1000; // Safety limit
         let iterations = 0;
+        const MAX_ITERATIONS = 10000; // Safety limit
         
-        // Execute the loop as long as the condition is true
-        while (iterations < maxIterations) {
+        // Reset break flag at the start of loop
+        this.currentBreakFlag = false;
+        
+        while (iterations < MAX_ITERATIONS) {
             iterations++;
             
             // Evaluate the condition
-            console.log(`[Iteration ${iterations}] Evaluating condition: ${ctx._condition.getText()}`);
             const conditionValue = this.visit(ctx._condition);
-            console.log(`[Iteration ${iterations}] Condition evaluated to: ${conditionValue}`);
+            console.log(`[DEBUG] Loop condition evaluated to: ${conditionValue} (iteration: ${iterations})`);
             
-            // Exit the loop if condition is false (0 in our semantics)
+            // Exit if condition is false
             if (conditionValue === 0) {
-                console.log(`[Iteration ${iterations}] Condition is false, exiting loop`);
+                console.log(`[DEBUG] Loop condition is false, exiting loop`);
                 break;
             }
             
-            // Execute the loop body
-            console.log(`[Iteration ${iterations}] Executing loop body`);
-            result = this.visit(ctx._loopBlock);
+            // Enter a new scope for the loop body
+            this.enterScope();
             
-            // Debug variables after loop body execution
-            if (ctx._condition.getText().includes('<') || ctx._condition.getText().includes('>') || 
-                ctx._condition.getText().includes('==') || ctx._condition.getText().includes('!=')) {
+            try {
+                // Execute the loop body
+                result = this.visit(ctx._loopBlock);
                 
-                const parts = ctx._condition.getText().split(/[<>=!]+/);
-                if (parts.length >= 2) {
-                    const leftVar = parts[0].trim();
-                    const rightVar = parts[1].trim();
-                    
-                    console.log(`[Debug] Variables in condition after iteration ${iterations}:`);
-                    if (this.variableStates.has(leftVar)) {
-                        console.log(`  ${leftVar} = ${this.variableStates.get(leftVar)?.value}`);
-                    }
-                    if (this.variableStates.has(rightVar)) {
-                        console.log(`  ${rightVar} = ${this.variableStates.get(rightVar)?.value}`);
-                    }
+                // Check if a break statement was encountered
+                if (this.currentBreakFlag) {
+                    console.log(`[DEBUG] Break statement detected, exiting loop`);
+                    this.currentBreakFlag = false; // Reset the flag
+                    break;
                 }
-            }
-            
-            // Check for early return from within loop
-            if (this.isReturning) {
-                console.log(`[Iteration ${iterations}] Early return detected, breaking loop`);
-                break;
+                
+                // Check for early return from within loop
+                if (this.isReturning) {
+                    break;
+                }
+            } finally {
+                // Always exit the loop body scope
+                this.exitScope();
             }
         }
         
-        if (iterations >= maxIterations) {
-            throw new Error(`Potential infinite loop detected: exceeded ${maxIterations} iterations`);
+        if (iterations >= MAX_ITERATIONS) {
+            throw new Error("Potential infinite loop detected");
         }
         
-        console.log(`While loop completed after ${iterations} iterations with result: ${result}`);
+        console.log(`[DEBUG] While loop completed after ${iterations} iterations`);
         return result;
     }
 
@@ -1062,6 +1062,16 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         console.log(`Comparison result: ${left} ${op} ${right} = ${result} (${numResult})`);
         
         return numResult;
+    }
+
+    // Visit a parse tree produced by RustParser#breakStatement
+    visitBreakStatement(ctx: rp.BreakStatementContext): number {
+        console.log(`[DEBUG] Break statement encountered`);
+        
+        // Set the break flag to true
+        this.currentBreakFlag = true;
+        
+        return 0;
     }
 }
 
