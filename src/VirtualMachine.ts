@@ -46,6 +46,10 @@ export class VirtualMachine {
     private osPtr: number = 0; // Operand stack pointer
     private nextVarAddr: number = VirtualMachine.HEAP_BASE; // Next available variable address
 
+    // Label support for VM jumps
+    private labels: Map<string, number> = new Map();
+    private forwardRefs: Map<string, number[]> = new Map();
+
     constructor(memSize: number = 4096) { // Ensure this is large enough
         this.memSize = memSize;
         this.memory = new ArrayBuffer(memSize);
@@ -122,7 +126,7 @@ export class VirtualMachine {
 
     public run(): number {
         this.pc = 0;
-        this.osPtr = VirtualMachine.OS_BASE;
+        this.osPtr = 0; // Reset operand stack pointer
         
         try {
             while (this.pc < this.ic) {
@@ -132,12 +136,15 @@ export class VirtualMachine {
                     throw new Error(`Invalid instruction at ${this.pc - 1}`);
                 }
                 
+                // Debug instruction execution
+                console.log(`[VM] Executing: ${instr.tag}${instr.value !== undefined ? ' ' + instr.value : ''}`);
+                
                 switch (instr.tag) {
-                    case "DONE":
+                    case InstructionTag.DONE:
                         // Return the top value from the stack
-                        return this.osPtr > VirtualMachine.OS_BASE ? this.popOperand() : 0;
+                        return this.osPtr > 0 ? this.popOperand() : 0;
                         
-                    case "LDCN":
+                    case InstructionTag.LDCN:
                         if (instr.value !== undefined) {
                             this.pushOperand(instr.value);
                         } else {
@@ -146,14 +153,126 @@ export class VirtualMachine {
                         }
                         break;
                     
-                    case "PLUS": {
+                    case InstructionTag.PLUS: {
                         const b = this.popOperand();
                         const a = this.popOperand();
-                        this.pushOperand(a + b);
+                        const result = a + b;
+                        console.log(`[VM] PLUS: ${a} + ${b} = ${result}`);
+                        this.pushOperand(result);
                         break;
                     }
                     
-                    // Handle other instructions...
+                    case InstructionTag.MINUS: {
+                        const b = this.popOperand();
+                        const a = this.popOperand();
+                        const result = a - b;
+                        console.log(`[VM] MINUS: ${a} - ${b} = ${result}`);
+                        this.pushOperand(result);
+                        break;
+                    }
+                    
+                    case InstructionTag.TIMES: {
+                        const b = this.popOperand();
+                        const a = this.popOperand();
+                        const result = a * b;
+                        console.log(`[VM] TIMES: ${a} * ${b} = ${result}`);
+                        this.pushOperand(result);
+                        break;
+                    }
+                    
+                    case InstructionTag.DIVIDE: {
+                        const b = this.popOperand();
+                        const a = this.popOperand();
+                        
+                        if (b === 0) {
+                            throw new Error("Division by zero");
+                        }
+                        
+                        // Integer division truncates toward zero in Rust
+                        const result = Math.trunc(a / b);
+                        console.log(`[VM] DIVIDE: ${a} / ${b} = ${result}`);
+                        this.pushOperand(result);
+                        break;
+                    }
+                    
+                    case InstructionTag.LT: {
+                        const b = this.popOperand();
+                        const a = this.popOperand();
+                        const result = a < b ? 1 : 0;
+                        console.log(`[VM] LT: ${a} < ${b} = ${result}`);
+                        this.pushOperand(result);
+                        break;
+                    }
+                    
+                    case InstructionTag.LE: {
+                        const b = this.popOperand();
+                        const a = this.popOperand();
+                        const result = a <= b ? 1 : 0;
+                        console.log(`[VM] LE: ${a} <= ${b} = ${result}`);
+                        this.pushOperand(result);
+                        break;
+                    }
+                    
+                    case InstructionTag.GT: {
+                        const b = this.popOperand();
+                        const a = this.popOperand();
+                        const result = a > b ? 1 : 0;
+                        console.log(`[VM] GT: ${a} > ${b} = ${result}`);
+                        this.pushOperand(result);
+                        break;
+                    }
+                    
+                    case InstructionTag.GE: {
+                        const b = this.popOperand();
+                        const a = this.popOperand();
+                        const result = a >= b ? 1 : 0;
+                        console.log(`[VM] GE: ${a} >= ${b} = ${result}`);
+                        this.pushOperand(result);
+                        break;
+                    }
+                    
+                    case InstructionTag.EQ: {
+                        const b = this.popOperand();
+                        const a = this.popOperand();
+                        const result = a === b ? 1 : 0;
+                        console.log(`[VM] EQ: ${a} == ${b} = ${result}`);
+                        this.pushOperand(result);
+                        break;
+                    }
+                    
+                    case InstructionTag.NE: {
+                        const b = this.popOperand();
+                        const a = this.popOperand();
+                        const result = a !== b ? 1 : 0;
+                        console.log(`[VM] NE: ${a} != ${b} = ${result}`);
+                        this.pushOperand(result);
+                        break;
+                    }
+                    
+                    case InstructionTag.GOTO: {
+                        if (instr.value === undefined) {
+                            throw new Error("GOTO instruction missing target");
+                        }
+                        console.log(`[VM] GOTO: Jumping to ${instr.value}`);
+                        this.pc = instr.value;
+                        break;
+                    }
+                    
+                    case InstructionTag.JOF: {
+                        if (instr.value === undefined) {
+                            throw new Error("JOF instruction missing target");
+                        }
+                        
+                        const condition = this.popOperand();
+                        // Jump if the condition is false (0)
+                        if (condition === 0) {
+                            console.log(`[VM] JOF: Condition false, jumping to ${instr.value}`);
+                            this.pc = instr.value;
+                        } else {
+                            console.log(`[VM] JOF: Condition true, continuing`);
+                        }
+                        break;
+                    }
                     
                     default:
                         console.warn(`Unknown instruction: ${instr.tag}`);
@@ -161,7 +280,7 @@ export class VirtualMachine {
             }
             
             // No DONE instruction found
-            return this.osPtr > VirtualMachine.OS_BASE ? this.popOperand() : 0;
+            return this.osPtr > 0 ? this.popOperand() : 0;
         } catch (error) {
             console.error('VM runtime error:', error);
             throw error;
@@ -206,7 +325,67 @@ export class VirtualMachine {
         this.nextVarAddr = VirtualMachine.HEAP_BASE;
         
         // Clear memory
+        this.labels.clear();
+        this.forwardRefs.clear();
         this.memory = new ArrayBuffer(this.memSize);
         this.view = new DataView(this.memory);
+    }
+
+    // Add a label at the current instruction counter
+    public addLabel(label: string): void {
+        console.log(`[VM] Adding label '${label}' at instruction ${this.ic}`);
+        this.labels.set(label, this.ic);
+
+        // Resolve any forward references to this label
+        if (this.forwardRefs.has(label)) {
+            const refs = this.forwardRefs.get(label)!;
+            console.log(`[VM] Resolving ${refs.length} forward references to label '${label}'`);
+            
+            for (const instructionIndex of refs) {
+                this.setInstructionTarget(instructionIndex, this.ic);
+                console.log(`[VM] Resolved jump at instruction ${instructionIndex} to target ${this.ic}`);
+            }
+            
+            // Clear the resolved references
+            this.forwardRefs.delete(label);
+        }
+    }
+
+    // Push a goto instruction that will be resolved later
+    public pushGoto(label: string): number {
+        console.log(`[VM] Pushing GOTO to '${label}'`);
+        const idx = this.pushInstruction(InstructionTag.GOTO);
+        
+        // If the label already exists, set the target
+        if (this.labels.has(label)) {
+            this.setInstructionTarget(idx-1, this.labels.get(label)!);
+        } else {
+            if (!this.forwardRefs.has(label)) {
+                this.forwardRefs.set(label, []);
+            }
+            this.forwardRefs.get(label)!.push(idx-1);
+            console.log(`[VM] Added forward reference to label '${label}' from instruction ${idx-1}`);
+        }
+        
+        return idx;
+    }
+
+    // Push a jump-on-false instruction that will be resolved later
+    public pushJof(label: string): number {
+        console.log(`[VM] Pushing JOF to '${label}'`);
+        const idx = this.pushInstruction(InstructionTag.JOF);
+        
+        // If the label already exists, set the target
+        if (this.labels.has(label)) {
+            this.setInstructionTarget(idx-1, this.labels.get(label)!);
+        } else {
+            if (!this.forwardRefs.has(label)) {
+                this.forwardRefs.set(label, []);
+            }
+            this.forwardRefs.get(label)!.push(idx-1);
+            console.log(`[VM] Added forward reference to label '${label}' from instruction ${idx-1}`);
+        }
+        
+        return idx;
     }
 }

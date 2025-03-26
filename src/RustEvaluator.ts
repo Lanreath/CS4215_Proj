@@ -14,6 +14,23 @@ enum BorrowState {
     Moved            // Variable's value has been moved and cannot be used
 }
 
+enum InstructionTag {
+    DONE = "DONE",
+    LDCN = "LDCN",
+    PLUS = "PLUS",
+    MINUS = "MINUS",
+    TIMES = "TIMES",
+    DIVIDE = "DIVIDE",
+    LT = "LT",
+    LE = "LE",
+    GT = "GT",
+    GE = "GE",
+    EQ = "EQ",
+    NE = "NE",
+    GOTO = "GOTO",
+    JOF = "JOF",
+}
+
 // Enhanced variable state tracking
 class VariableState {
     state: BorrowState;
@@ -844,37 +861,23 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         // Get the left and right operands
         const left = this.visit(ctx._left);
         const right = this.visit(ctx._right);
-        
+                
         // Get the operator
         const op = ctx._op.text;
         
         console.log(`[DEBUG] Performing ${op} operation: ${left} ${op} ${right}`);
         
-        let result: number;
-        
-        // Perform the operation
+        // Issue the appropriate VM instruction
         if (op === '*') {
-            result = left * right;
-            this.vm.pushInstruction("TIMES");
+            this.vm.pushInstruction(InstructionTag.TIMES);
         } else if (op === '/') {
-            // Check for division by zero
-            if (right === 0) {
-                throw new Error("Division by zero");
-            }
-            
-            // In Rust, integer division truncates toward zero
-            result = Math.trunc(left / right);
-            this.vm.pushInstruction("DIVIDE");
+            this.vm.pushInstruction(InstructionTag.DIVIDE);
         } else {
             throw new Error(`Unknown operator: ${op}`);
         }
         
-        console.log(`[DEBUG] Result of ${left} ${op} ${right} = ${result}`);
-        
-        // Push the result to the VM
-        this.vm.pushInstruction("LDCN", result);
-        
-        return result;
+        // The result will now be on top of the VM's operand stack
+        return op === '*' ? left * right : Math.trunc(left / right);
     }
 
     // Visit a parse tree produced by RustParser#addSubOp
@@ -1017,51 +1020,37 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
 
     // Visit a parse tree produced by RustParser#equalityOp
     visitEqualityOp(ctx: rp.EqualityOpContext): number {
-                const left = this.visit(ctx._left);
+        // Evaluate the left and right expressions
+        const left = this.visit(ctx._left);
         const right = this.visit(ctx._right);
-                const op = ctx._op.text;
         
-        console.log(`Comparing ${left} ${op} ${right}`);
+        // Get the operator
+        const op = ctx._op.text;
         
-        // Ensure operands are numbers
-        const leftNum = Number(left);
-        const rightNum = Number(right);
+        console.log(`[DEBUG] Comparing: ${left} ${op} ${right}`);
         
-        // Check for NaN
-        if (isNaN(leftNum) || isNaN(rightNum)) {
-            console.error(`Invalid comparison: ${left} ${op} ${right} - one or both operands are not numbers`);
-            return 0; // Default to false for invalid comparisons
-        }
-        
-        // Perform the comparison
-        let result = false;
         switch (op) {
             case '>':
-                result = leftNum > rightNum;
-                break;
+                this.vm.pushInstruction(InstructionTag.GT);
+                return left > right ? 1 : 0;
             case '>=':
-                result = leftNum >= rightNum;
-                break;
+                this.vm.pushInstruction(InstructionTag.GE);
+                return left >= right ? 1 : 0;
             case '<':
-                result = leftNum < rightNum;
-                break;
+                this.vm.pushInstruction(InstructionTag.LT);
+                return left < right ? 1 : 0;
             case '<=':
-                result = leftNum <= rightNum;
-                break;
+                this.vm.pushInstruction(InstructionTag.LE);
+                return left <= right ? 1 : 0;
             case '==':
-                result = leftNum === rightNum;
-                break;
+                this.vm.pushInstruction(InstructionTag.EQ);
+                return left === right ? 1 : 0;
             case '!=':
-                result = leftNum !== rightNum;
-                break;
+                this.vm.pushInstruction(InstructionTag.NE);
+                return left !== right ? 1 : 0;
             default:
                 throw new Error(`Unknown comparison operator: ${op}`);
         }
-        
-        const numResult = result ? 1 : 0;
-        console.log(`Comparison result: ${left} ${op} ${right} = ${result} (${numResult})`);
-        
-        return numResult;
     }
 
     // Visit a parse tree produced by RustParser#breakStatement
