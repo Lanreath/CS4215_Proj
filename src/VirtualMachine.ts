@@ -13,6 +13,8 @@ enum InstructionTag {
     NE = "NE",
     GOTO = "GOTO",
     JOF = "JOF",
+    LOAD = "LOAD",
+    STORE = "STORE"
 }
 export class Instruction {
     public tag: InstructionTag;
@@ -83,6 +85,10 @@ export class VirtualMachine {
     }
 
     public pushInstruction(tag: string, value?: number): number {
+        if (this.ic >= 10000) { 
+            throw new Error("Program too large: exceeded maximum instruction count");
+        }
+        
         console.log(`[VM] Pushing instruction: ${tag}${value !== undefined ? ' ' + value : ''}`);
         const instr = new Instruction(tag as InstructionTag, value);
         this.instructions[this.ic] = instr;
@@ -105,12 +111,22 @@ export class VirtualMachine {
 
 
     public pushOperand(value: number): void {
-        const addr = VirtualMachine.OS_BASE + this.osPtr * 4;
+        const addr = VirtualMachine.OS_BASE + this.osPtr * 8; 
         if (addr >= VirtualMachine.RS_BASE) {
             throw new Error("Operand stack overflow");
         }
-        this.view.setInt32(addr, value);
+        this.view.setFloat64(addr, value, true);
         this.osPtr++;
+    }
+
+    private popTwoOperands(): [number, number] {
+        if (this.osPtr < 2) {
+            throw new Error("Not enough operands for binary operation");
+        }
+        
+        const b = this.popOperand();
+        const a = this.popOperand();
+        return [a, b];
     }
 
     public popOperand(): number {
@@ -118,9 +134,9 @@ export class VirtualMachine {
             throw new Error("Operand stack underflow");
         }
         this.osPtr--;
-        const addr = VirtualMachine.OS_BASE + this.osPtr * 4;
-        const value = this.view.getInt32(addr);
-        this.view.setInt32(addr, 0);
+        const addr = VirtualMachine.OS_BASE + this.osPtr * 8;
+        const value = this.view.getFloat64(addr, true);
+        this.view.setFloat64(addr, 0, true);
         return value;
     }
 
@@ -154,8 +170,7 @@ export class VirtualMachine {
                         break;
                     
                     case InstructionTag.PLUS: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a + b;
                         console.log(`[VM] PLUS: ${a} + ${b} = ${result}`);
                         this.pushOperand(result);
@@ -163,8 +178,7 @@ export class VirtualMachine {
                     }
                     
                     case InstructionTag.MINUS: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a - b;
                         console.log(`[VM] MINUS: ${a} - ${b} = ${result}`);
                         this.pushOperand(result);
@@ -172,8 +186,7 @@ export class VirtualMachine {
                     }
                     
                     case InstructionTag.TIMES: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a * b;
                         console.log(`[VM] TIMES: ${a} * ${b} = ${result}`);
                         this.pushOperand(result);
@@ -181,9 +194,7 @@ export class VirtualMachine {
                     }
                     
                     case InstructionTag.DIVIDE: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
-                        
+                        const [a, b] = this.popTwoOperands();
                         if (b === 0) {
                             throw new Error("Division by zero");
                         }
@@ -196,8 +207,7 @@ export class VirtualMachine {
                     }
                     
                     case InstructionTag.LT: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a < b ? 1 : 0;
                         console.log(`[VM] LT: ${a} < ${b} = ${result}`);
                         this.pushOperand(result);
@@ -205,8 +215,7 @@ export class VirtualMachine {
                     }
                     
                     case InstructionTag.LE: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a <= b ? 1 : 0;
                         console.log(`[VM] LE: ${a} <= ${b} = ${result}`);
                         this.pushOperand(result);
@@ -214,8 +223,7 @@ export class VirtualMachine {
                     }
                     
                     case InstructionTag.GT: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a > b ? 1 : 0;
                         console.log(`[VM] GT: ${a} > ${b} = ${result}`);
                         this.pushOperand(result);
@@ -223,8 +231,7 @@ export class VirtualMachine {
                     }
                     
                     case InstructionTag.GE: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a >= b ? 1 : 0;
                         console.log(`[VM] GE: ${a} >= ${b} = ${result}`);
                         this.pushOperand(result);
@@ -232,8 +239,7 @@ export class VirtualMachine {
                     }
                     
                     case InstructionTag.EQ: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a === b ? 1 : 0;
                         console.log(`[VM] EQ: ${a} == ${b} = ${result}`);
                         this.pushOperand(result);
@@ -241,8 +247,7 @@ export class VirtualMachine {
                     }
                     
                     case InstructionTag.NE: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a !== b ? 1 : 0;
                         console.log(`[VM] NE: ${a} != ${b} = ${result}`);
                         this.pushOperand(result);
@@ -255,6 +260,28 @@ export class VirtualMachine {
                         }
                         console.log(`[VM] GOTO: Jumping to ${instr.value}`);
                         this.pc = instr.value;
+                        break;
+                    }
+
+                    case InstructionTag.LOAD: {
+                        if (instr.value === undefined) {
+                            throw new Error("LOAD instruction missing address");
+                        }
+                        const address = instr.value;
+                        const value = this.view.getFloat64(address);
+                        this.pushOperand(value);
+                        console.log(`[VM] LOAD: Loaded ${value} from address ${address}`);
+                        break;
+                    }
+                    
+                    case InstructionTag.STORE: {
+                        if (instr.value === undefined) {
+                            throw new Error("STORE instruction missing address");
+                        }
+                        const value = this.popOperand();
+                        const address = instr.value;
+                        this.view.setFloat64(address, value);
+                        console.log(`[VM] STORE: Stored ${value} to address ${address}`);
                         break;
                     }
                     
@@ -290,31 +317,31 @@ export class VirtualMachine {
     // Improve the allocateVariable method to properly check bounds
     public allocateVariable(): number {
         // Check if we have enough memory before allocating
-        if (this.nextVarAddr + 4 > this.memSize) {
+        if (this.nextVarAddr + 8 > this.memSize) {
             throw new Error(`Out of memory: Tried to allocate beyond ${this.memSize} bytes`);
         }
-
+    
         const addr = this.nextVarAddr;
-        this.nextVarAddr += 4; // Allocate 4 bytes for an integer
+        this.nextVarAddr += 8; // Allocate 8 bytes for all values
         return addr;
     }
 
     public storeValue(addr: number, value: number): void {
         // Safety check to prevent out-of-bounds writes
-        if (addr < 0 || addr + 4 > this.memSize) {
+        if (addr < 0 || addr + 8 > this.memSize) {
             throw new Error(`Invalid memory address for write: ${addr}`);
         }
         
-        this.view.setInt32(addr, value, true);
+        this.view.setFloat64(addr, value, true);
     }
 
     public loadValue(addr: number): number {
         // Safety check to prevent out-of-bounds reads
-        if (addr < 0 || addr + 4 > this.memSize) {
+        if (addr < 0 || addr + 8 > this.memSize) {
             throw new Error(`Invalid memory address for read: ${addr}`);
         }
         
-        return this.view.getInt32(addr, true);
+        return this.view.getFloat64(addr, true);
     }
 
     public reset(): void {

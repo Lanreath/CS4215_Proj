@@ -29,6 +29,8 @@ enum InstructionTag {
     NE = "NE",
     GOTO = "GOTO",
     JOF = "JOF",
+    LOAD = "LOAD",
+    STORE = "STORE",
 }
 
 // Enhanced variable state tracking
@@ -69,7 +71,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     private functionReturnValue: number | null = null;
     private isReturning: boolean = false;
     private currentFunctionReturnType: string | null = null;
-
+    private loopEndLabels: string[] = [];
     private scopes: Map<string, any>[] = [new Map()]; // Stack of scopes
     private currentBreakFlag: boolean = false; // For break statements
 
@@ -307,104 +309,83 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         }
     }
 
+    public compileAndRun(tree: any): number {
+        // Reset state
+        this.reset();
+        this.vm.reset();
+        
+        // COMPILATION PHASE: Generate VM instructions
+        this.visit(tree);
+        
+        // Mark the end of the program
+        this.vm.pushInstruction(InstructionTag.DONE);
+        
+        // EXECUTION PHASE: Run the VM code
+        console.log("[EVALUATOR] Compilation complete, running VM...");
+        const result = this.vm.run();
+        console.log(`[EVALUATOR] Program executed with result: ${result}`);
+        
+        return result;
+    }
+
+    /**
+     * Reset all state for a new evaluation
+     */
+    public reset(): void {
+        // Clear variable tracking
+        this.variableStates = new Map();
+        this.variableAddresses = new Map();
+        this.referenceMap = new Map();
+        
+        // Reset scopes
+        this.scopes = [new Map()];
+        
+        // Reset function tracking
+        this.functionDefinitions = new Map();
+        this.currentFunctionReturnType = null;
+        this.functionReturnValue = null;
+        
+        // Reset control flow flags
+        this.isReturning = false;
+        this.currentBreakFlag = false;
+        
+        // Reset reference tracking
+        this.lastCreatedReference = null;
+        
+        console.log("[EVALUATOR] State reset complete");
+    }
+
     // Visit methods for grammar
 
     // Visit a parse tree produced by RustParser#prog
     visitProg(ctx: rp.ProgContext): number {
-        // Reset state for a new program
-        this.variableStates.clear();
-        this.variableAddresses.clear();
-        this.referenceMap.clear();
-        this.scopes = [new Map()];
-        
-        // Visit all statements
-        for (const statement of ctx.statement()) {
+        console.log(`[COMPILE] Program`);
+    
+        // Compile all statements in the program
+        const statements = ctx.statement() || [];
+        for (const statement of statements) {
             this.visit(statement);
         }
-        
-        // Mark end of program
-        this.vm.pushInstruction("DONE");
-        this.vm.printInstructions();
         
         return 0;
     }
 
     // Visit a parse tree produced by RustParser#variableDeclaration
     visitVariableDeclaration(ctx: rp.VariableDeclarationContext): number {
-        if (!ctx._name || !ctx._value || !ctx._name.text) {
-            throw new Error("Error in variable declaration grammar");
-        }
-        
         const name = ctx._name.text;
         const isMutable = ctx._mutFlag ? true : false;
         
-        console.log(`Declaring variable: ${name}, mutable: ${isMutable}`);
+        // Allocate memory and register the variable
+        const address = this.vm.allocateVariable();
+        this.variableAddresses.set(name, address);
+        this.variableStates.set(name, new VariableState(isMutable, 0));
+        this.currentScope().set(name, true);
         
-        // Check if this is a reference type
-        const isRefType = ctx.type && ctx.type().getText().includes('&');
+        // Generate VM instructions for the initializer expression
+        this.visit(ctx._value);
         
-        // Check if this is a reference expression
-        const isRefExpr = ctx._value instanceof rp.ReferenceExprContext;
-        
-        if (isRefExpr && isRefType) {
-            // First visit the expression to create the reference
-            this.visit(ctx._value);
-            
-            const refName = this.lastCreatedReference;
-            if (!refName) {
-                throw new BorrowError(`Failed to create reference for ${name}`);
-            }
-            
-            // Copy the reference mapping to the new variable name
-            const targetVar = this.referenceMap.get(refName);
-            if (targetVar) {
-                console.log(`Creating reference alias: ${name} -> ${targetVar}`);
-                
-                // Register the new reference name in the current scope
-                const currentScope = this.scopes[this.scopes.length - 1];
-                currentScope.set(name, true);
-                
-                // Add it to the reference map
-                this.referenceMap.set(name, targetVar);
-                
-                // Get the target's state
-                const targetState = this.lookupVariable(targetVar);
-                if (targetState) {
-                    // Update borrowers list
-                    targetState.borrowers.push(name);
-                    
-                    // Create a state for the new reference variable
-                    const refState = new VariableState(false, targetState.value);
-                    this.variableStates.set(name, refState);
-                    
-                    // Allocate memory in VM
-                    const address = this.vm.allocateVariable();
-                    this.variableAddresses.set(name, address);
-                    this.vm.storeValue(address, targetState.value);
-                }
-                
-                // Clear the lastCreatedReference after use
-                this.lastCreatedReference = null;
-            } else {
-                throw new BorrowError(`Invalid reference creation`);
-            }
-        } else {
-            // Normal variable declaration with a value
-            const value = this.visit(ctx._value);
-            
-            // Declare the variable in current scope
-            this.declareVariable(name, isMutable, value);
-            
-            // Handle ownership transfer if the value is a variable
-            if (ctx._value instanceof rp.IdentifierContext) {
-                const sourceVar = ctx._value.getText();
-                
-                // Only move if it's not a reference
-                if (!this.referenceMap.has(sourceVar)) {
-                    this.moveVariable(sourceVar, name);
-                }
-            }
-        }
+        // Store the stack top value to the variable's memory address
+        this.vm.pushInstruction(InstructionTag.STORE, address);
         
         return 0;
     }
@@ -412,7 +393,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     // Visit a parse tree produced by RustParser#standardAssignment
     visitStandardAssignment(ctx: rp.StandardAssignmentContext): number {
         const target = ctx.IDENTIFIER().getText();
-        console.log(`Assignment to ${target}`);
+        console.log(`[COMPILE] Assignment to: ${target}`);
         
         // Check if the variable exists and is mutable
         const targetState = this.lookupVariable(target);
@@ -422,29 +403,22 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         
         this.checkWriteAccess(target);
         
-        // Check if the variable is currently borrowed
-        if (targetState.state === BorrowState.BorrowedImmutably) {
-            throw new Error(`Cannot assign to ${target} while it is borrowed`);
-        }
+        // Evaluate the expression, which puts its value on the stack
+        this.visit(ctx.expression());
         
-        if (targetState.state === BorrowState.BorrowedMutably) {
-            throw new Error(`Cannot assign to ${target} while it is mutably borrowed`);
-        }
-        
-        // Evaluate the expression
-        const value = this.visit(ctx.expression());
-        console.log(`Assigning value ${value} to ${target}`);
-        
-        // Update the variable's value
-        targetState.value = value;
-        
-        // Update in VM memory
+        // Get the memory address
         const addr = this.variableAddresses.get(target);
-        if (addr !== undefined) {
-            this.vm.storeValue(addr, value);
+        if (addr === undefined) {
+            throw new Error(`No memory allocated for variable ${target}`);
         }
         
-        return value;
+        // Store the value from stack to variable memory
+        this.vm.pushInstruction(InstructionTag.STORE, addr);
+        
+        // Also update our state tracking (for reference checks)
+        // But actual value will be set at runtime
+        
+        return 0;
     }
 
 // Visit a parse tree produced by RustParser#referenceExpr
@@ -617,61 +591,48 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
 
     // Visit a parse tree produced by RustParser#block
     visitBlock(ctx: rp.BlockContext): number {
-        // Create a new scope for the block
+        console.log(`[COMPILE] Code block`);
+    
+        // Enter a new variable scope
         this.enterScope();
         
         try {
-            let result = 0;
-            
-            // Execute all statements in the block
-            if (ctx.statement) {
-                const statements = ctx.statement();
-                for (const statement of statements) {
-                    result = this.visit(statement);
-                    
-                    // Check for early return
-                    if (this.isReturning) {
-                        return this.functionReturnValue !== null ? this.functionReturnValue : result;
-                    }
-                }
+            // Compile all statements in the block
+            const statements = ctx.statement() || [];
+            for (const statement of statements) {
+                this.visit(statement);
             }
             
-            // Handle optional final expression (implicit return)
+            // Compile the optional final expression (for implicit returns)
             if (ctx.expression && ctx.expression()) {
-                result = this.visit(ctx.expression());
-                
-                // If this block is in a function, this could be an implicit return
-                if (this.currentFunctionReturnType !== null) {
-                    this.functionReturnValue = result;
-                    this.isReturning = true;
-                }
+                this.visit(ctx.expression());
             }
-            
-            return result;
         } finally {
-            // Always exit the scope when leaving the block
+            // Always exit the scope
             this.exitScope();
         }
+        
+        return 0;
     }
 
     // Visit a parse tree produced by RustParser#identifier
-    visitIdentifier(ctx: rp.IdentifierContext): number {
-        const varName = ctx.IDENTIFIER().getText();
+    // visitIdentifier(ctx: rp.IdentifierContext): number {
+    //     const varName = ctx.IDENTIFIER().getText();
         
-        // Check if this variable can be read
-        this.checkReadAccess(varName);
+    //     // Check if this variable can be read
+    //     this.checkReadAccess(varName);
         
-        // Get the value
-        const state = this.lookupVariable(varName);
-        if (!state) {
-            throw new OwnershipError(`Variable ${varName} not declared`);
-        }
+    //     // Get the value
+    //     const state = this.lookupVariable(varName);
+    //     if (!state) {
+    //         throw new OwnershipError(`Variable ${varName} not declared`);
+    //     }
         
-        // Push value onto stack
-        this.vm.pushInstruction("LDCN", state.value);
+    //     // Push value onto stack
+    //     this.vm.pushInstruction("LDCN", state.value);
         
-        return state.value;
-    }
+    //     return state.value;
+    // }
 
     // Visit a parse tree produced by RustParser#returnStatement
     visitReturnStatement(ctx: rp.ReturnStatementContext): number {
@@ -704,64 +665,58 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         }
         
         const funcName = ctx.IDENTIFIER().getText();
-        console.log(`Calling function: ${funcName}`);
+        console.log(`[COMPILE] Calling function: ${funcName}`);
         
         // Get the function definition
         const funcDef = this.functionDefinitions.get(funcName);
         if (!funcDef) {
             throw new Error(`Undefined function: ${funcName}`);
         }
+
+        const params = funcDef.paramList()?.param() || [];
+        const args = ctx.argList()?.expression() || [];
+        
+        if (params.length !== args.length) {
+            throw new Error(`Function ${funcName} expects ${params.length} arguments but got ${args.length}`);
+        }
         
         // Create a new scope for function execution
         this.enterScope();
         
-        try {
-            // Reset return state
-            this.functionReturnValue = null;
-            this.isReturning = false;
+        // Evaluate arguments and set up parameters
+        for (let i = 0; i < args.length; i++) {
+            // Evaluate the argument expression
+            this.visit(args[i]);
             
-            // Process parameters - match arguments with parameters
-            const params = funcDef.paramList()?.param() || [];
-            const args = ctx.argList()?.expression() || [];
+            // Set up the parameter
+            const param = params[i];
+            const paramName = param._name?.text;
+            const paramType = param.type()?.getText();
             
-            if (params.length !== args.length) {
-                throw new Error(`Function ${funcName} expects ${params.length} arguments but got ${args.length}`);
+            if (!paramName || !paramType) {
+                throw new Error(`Invalid parameter at position ${i}`);
             }
             
-            // Evaluate arguments and assign to parameters
-            for (let i = 0; i < params.length; i++) {
-                const param = params[i];
-                const paramName = param._name?.text;
-                const paramType = param.type()?.getText();
-                
-                if (!paramName || !paramType) {
-                    throw new Error(`Invalid parameter at position ${i}`);
-                }
-                
-                this.processParameter(paramName, paramType, args[i]);
-            }
+            // Allocate memory for the parameter
+            const address = this.vm.allocateVariable();
+            this.variableAddresses.set(paramName, address);
             
-            // Set current function return type
-            this.currentFunctionReturnType = funcDef._returnType?.getText() || null;
+            // Store the value from stack to parameter memory
+            this.vm.pushInstruction(InstructionTag.STORE, address);
             
-            // Execute the function body
-            let result = this.visit(funcDef._functionBody);
-            
-            // If a return statement was executed, use that value
-            if (this.isReturning && this.functionReturnValue !== null) {
-                result = this.functionReturnValue;
-            }
-            
-            // Reset return state
-            this.currentFunctionReturnType = null;
-            this.functionReturnValue = null;
-            this.isReturning = false;
-            
-            return result;
-        } finally {
-            // Always exit the function scope
-            this.exitScope();
+            // Create the parameter state
+            const paramState = new VariableState(false, 0); // Real value set at runtime
+            this.variableStates.set(paramName, paramState);
+            this.currentScope().set(paramName, true);
         }
+        
+        // Compile the function body
+        this.visit(funcDef._functionBody);
+        
+        // Exit the function scope
+        this.exitScope();
+        
+        return 0;
     }
 
     // Helper method to process function parameters
@@ -846,28 +801,53 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     // Methods push values onto the VM stack
     visitInt(ctx: rp.IntContext): number {
         const value = parseInt(ctx.INT().getText());
-        //console.log(`Visiting integer: ${value}`);
-        this.vm.pushInstruction("LDCN", value);
-        return value;
+        console.log(`[COMPILE] Loading constant: ${value}`);
+        this.vm.pushInstruction(InstructionTag.LDCN, value);
+        return 0; // Return value doesn't matter during compilation
     }
 
+    // Variable access
+    visitIdentifier(ctx: rp.IdentifierContext): number {
+        const name = ctx.IDENTIFIER().getText();
+        console.log(`[COMPILE] Loading variable: ${name}`);
+        
+        // Check if variable exists
+        const state = this.lookupVariable(name);
+        if (!state) {
+            throw new Error(`Variable ${name} is not defined`);
+        }
+        
+        // Check read access
+        this.checkReadAccess(name);
+        
+        // Get the memory address
+        const addr = this.variableAddresses.get(name);
+        if (addr === undefined) {
+            throw new Error(`No memory allocated for variable ${name}`);
+        }
+        
+        // Load variable value from memory address
+        this.vm.pushInstruction(InstructionTag.LOAD, addr);
+        
+        return 0;
+    }
+
+    // Parenthesized expression
     visitParenExpr(ctx: rp.ParenExprContext): number {
-        //console.log(`Visiting parenthesized expression`);
+        // Just visit the inner expression
         return this.visit(ctx.expression());
     }
 
     // Visit a parse tree produced by RustParser#mulDivOp
     visitMulDivOp(ctx: rp.MulDivOpContext): number {
         // Get the left and right operands
-        const left = this.visit(ctx._left);
-        const right = this.visit(ctx._right);
-                
-        // Get the operator
+        this.visit(ctx._left);
+        this.visit(ctx._right);
+        
         const op = ctx._op.text;
+        console.log(`[COMPILE] Arithmetic operation: ${op}`);
         
-        console.log(`[DEBUG] Performing ${op} operation: ${left} ${op} ${right}`);
-        
-        // Issue the appropriate VM instruction
+        // Push the appropriate instruction
         if (op === '*') {
             this.vm.pushInstruction(InstructionTag.TIMES);
         } else if (op === '/') {
@@ -876,34 +856,28 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
             throw new Error(`Unknown operator: ${op}`);
         }
         
-        // The result will now be on top of the VM's operand stack
-        return op === '*' ? left * right : Math.trunc(left / right);
+        return 0;
     }
 
     // Visit a parse tree produced by RustParser#addSubOp
     visitAddSubOp(ctx: rp.AddSubOpContext): number {
         // Evaluate left and right operands
-        const left = this.visit(ctx._left);
-        const right = this.visit(ctx._right);
+        this.visit(ctx._left);
+        this.visit(ctx._right);
         
-        // Get the operator
         const op = ctx._op.text;
+        console.log(`[COMPILE] Arithmetic operation: ${op}`);
         
-        console.log(`Calculating: ${left} ${op} ${right}`);
-        
-        // Perform the operation
-        let result: number;
+        // Push the appropriate instruction
         if (op === '+') {
-            result = left + right;
+            this.vm.pushInstruction(InstructionTag.PLUS);
         } else if (op === '-') {
-            result = left - right;
+            this.vm.pushInstruction(InstructionTag.MINUS);
         } else {
-            throw new Error(`Unknown arithmetic operator: ${op}`);
+            throw new Error(`Unknown operator: ${op}`);
         }
         
-        console.log(`Result of ${left} ${op} ${right} = ${result}`);
-        
-        return result;
+        return 0;
     }
 
     private functionDefinitions: Map<string, rp.FunctionDeclarationContext> = new Map();
@@ -915,12 +889,14 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         }
         
         const funcName = ctx._name.text;
-        console.log(`Defining function: ${funcName}`);
+        console.log(`[COMPILE] Defining function: ${funcName}`);
         
-        // Store the function definition for later use
+        // Store the function definition for later
         this.functionDefinitions.set(funcName, ctx);
         
-        // Functions don't produce a value at declaration time
+        // For now, just skip the function body - we'll compile it when called
+        // In a real compiler, you'd generate a function prologue, body, and epilogue
+        
         return 0;
     }
 
@@ -930,30 +906,34 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
             throw new Error("If statement must have a condition and a block");
         }
         
-        // Evaluate the condition
-        const conditionValue = this.visit(ctx._condition);
+        console.log(`[COMPILE] If statement`);
         
-        // Execute the appropriate branch based on condition
-        if (conditionValue !== 0) {
-            // Condition is true, execute the 'then' block
-            return this.visit(ctx._thenBlock);
-        } else if (ctx.elseBranch && ctx.elseBranch()) {
-            // Condition is false, execute the 'else' branch if it exists
-            return this.visit(ctx.elseBranch());
+        // Generate unique labels for jump targets
+        const elseLabel = `else_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        const endIfLabel = `endif_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        
+        // Compile the condition expression
+        this.visit(ctx._condition);
+        
+        // If condition is false, jump to else branch or end
+        this.vm.pushJof(elseLabel);
+        
+        // Compile the 'then' block
+        this.visit(ctx._thenBlock);
+        
+        // Jump to end of if statement (skip else)
+        this.vm.pushGoto(endIfLabel);
+        
+        // Add the else label
+        this.vm.addLabel(elseLabel);
+        
+        // Compile the else branch if it exists
+        if (ctx.elseBranch && ctx.elseBranch()) {
+            this.visit(ctx.elseBranch());
         }
         
-        // No branch executed, return 0
-        return 0;
-    }
-
-    // Visit a parse tree produced by RustParser#elseBranch
-    visitElseBranch(ctx: rp.ElseBranchContext): number {
-        // Handle 'else if' or simple 'else'
-        if (ctx.block && ctx.block()) {
-            return this.visit(ctx.block());
-        } else if (ctx.ifStatement && ctx.ifStatement()) {
-            return this.visit(ctx.ifStatement());
-        }
+        // Add the end label
+        this.vm.addLabel(endIfLabel);
         
         return 0;
     }
@@ -964,104 +944,87 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
             throw new Error("While statement must have a condition and a block");
         }
         
-        console.log(`[DEBUG] Starting while loop`);
+        console.log(`[COMPILE] While loop`);
         
-        let result = 0;
-        let iterations = 0;
-        const MAX_ITERATIONS = 10000; // Safety limit
+        // Generate unique labels for jump targets
+        const loopStartLabel = `loop_start_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        const loopEndLabel = `loop_end_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
         
-        // Reset break flag at the start of loop
-        this.currentBreakFlag = false;
+        this.loopEndLabels.push(loopEndLabel);
+
+        // Add the loop start label
+        this.vm.addLabel(loopStartLabel);
         
-        while (iterations < MAX_ITERATIONS) {
-            iterations++;
-            
-            // Evaluate the condition
-            const conditionValue = this.visit(ctx._condition);
-            console.log(`[DEBUG] Loop condition evaluated to: ${conditionValue} (iteration: ${iterations})`);
-            
-            // Exit if condition is false
-            if (conditionValue === 0) {
-                console.log(`[DEBUG] Loop condition is false, exiting loop`);
-                break;
-            }
-            
-            // Enter a new scope for the loop body
-            this.enterScope();
-            
-            try {
-                // Execute the loop body
-                result = this.visit(ctx._loopBlock);
-                
-                // Check if a break statement was encountered
-                if (this.currentBreakFlag) {
-                    console.log(`[DEBUG] Break statement detected, exiting loop`);
-                    this.currentBreakFlag = false; // Reset the flag
-                    break;
-                }
-                
-                // Check for early return from within loop
-                if (this.isReturning) {
-                    break;
-                }
-            } finally {
-                // Always exit the loop body scope
-                this.exitScope();
-            }
-        }
+        // Compile the condition expression
+        this.visit(ctx._condition);
         
-        if (iterations >= MAX_ITERATIONS) {
-            throw new Error("Potential infinite loop detected");
-        }
+        // If condition is false, jump to end of loop
+        this.vm.pushJof(loopEndLabel);
         
-        console.log(`[DEBUG] While loop completed after ${iterations} iterations`);
-        return result;
+        // Compile the loop body
+        this.visit(ctx._loopBlock);
+        
+        // Jump back to the start of the loop
+        this.vm.pushGoto(loopStartLabel);
+        
+        // Add the loop end label
+        this.vm.addLabel(loopEndLabel);
+        this.loopEndLabels.pop();
+
+        return 0;
     }
 
     // Visit a parse tree produced by RustParser#equalityOp
     visitEqualityOp(ctx: rp.EqualityOpContext): number {
         // Evaluate the left and right expressions
-        const left = this.visit(ctx._left);
-        const right = this.visit(ctx._right);
+        this.visit(ctx._left);
+        this.visit(ctx._right);
         
-        // Get the operator
         const op = ctx._op.text;
+        console.log(`[COMPILE] Comparison operation: ${op}`);
         
-        console.log(`[DEBUG] Comparing: ${left} ${op} ${right}`);
-        
+        // Push the appropriate instruction
         switch (op) {
             case '>':
                 this.vm.pushInstruction(InstructionTag.GT);
-                return left > right ? 1 : 0;
+                break;
             case '>=':
                 this.vm.pushInstruction(InstructionTag.GE);
-                return left >= right ? 1 : 0;
+                break;
             case '<':
                 this.vm.pushInstruction(InstructionTag.LT);
-                return left < right ? 1 : 0;
+                break;
             case '<=':
                 this.vm.pushInstruction(InstructionTag.LE);
-                return left <= right ? 1 : 0;
+                break;
             case '==':
                 this.vm.pushInstruction(InstructionTag.EQ);
-                return left === right ? 1 : 0;
+                break;
             case '!=':
                 this.vm.pushInstruction(InstructionTag.NE);
-                return left !== right ? 1 : 0;
+                break;
             default:
                 throw new Error(`Unknown comparison operator: ${op}`);
         }
+        
+        return 0;
     }
 
     // Visit a parse tree produced by RustParser#breakStatement
     visitBreakStatement(ctx: rp.BreakStatementContext): number {
         console.log(`[DEBUG] Break statement encountered`);
         
-        // Set the break flag to true
-        this.currentBreakFlag = true;
-        
+        if (this.loopEndLabels.length === 0) {
+            throw new Error("Break statement outside of loop");
+        }
+        const currentLoopEndLabel = this.loopEndLabels[this.loopEndLabels.length - 1];
+        this.vm.pushGoto(currentLoopEndLabel);
         return 0;
     }
+    private currentScope(): Map<string, any> {
+        return this.scopes[this.scopes.length - 1];
+    }
+
 }
 
 export class RustEvaluator extends BasicEvaluator {
@@ -1090,16 +1053,18 @@ export class RustEvaluator extends BasicEvaluator {
             // Parse the input
             const tree = parser.prog();
             
-            // Evaluate the parsed tree
+            // COMPILATION PHASE: Generate VM instructions
             this.visitor.visit(tree);
             
-            // Run the VM to get the result
+            // Mark the end of the program
+            vm.pushInstruction(InstructionTag.DONE);
+            
+            // EXECUTION PHASE: Run the VM code
+            console.log(`[EVALUATOR] Running compiled code...`);
             const result = vm.run();
             
             // Send the result to the REPL
             this.conductor.sendOutput(`Output: ${result}`);
-            
-            // Don't print VM instructions here to avoid duplicate output
         } catch (error) {
             if (error instanceof Error) {
                 this.conductor.sendOutput(`Error: ${error.message}`);
