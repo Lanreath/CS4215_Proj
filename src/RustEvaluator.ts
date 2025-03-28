@@ -136,7 +136,8 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         // Allocate memory in VM
         const address = this.vm.allocateVariable();
         this.variableAddresses.set(name, address);
-        this.vm.storeValue(address, value);
+        this.vm.pushInstruction("LDCN", value);
+        this.vm.pushInstruction("STORE", address);
         
         console.log(`[DEBUG] Declared variable: ${name}, mutable: ${mutable}, value: ${value}`);
     }
@@ -380,7 +381,8 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
                     // Allocate memory in VM
                     const address = this.vm.allocateVariable();
                     this.variableAddresses.set(name, address);
-                    this.vm.storeValue(address, targetState.value);
+                    this.vm.pushInstruction("LDCN", targetState.value);
+                    this.vm.pushInstruction("STORE", address);
                 }
                 
                 // Clear the lastCreatedReference after use
@@ -441,7 +443,8 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         // Update in VM memory
         const addr = this.variableAddresses.get(target);
         if (addr !== undefined) {
-            this.vm.storeValue(addr, value);
+            this.vm.pushInstruction("LDCN", value);
+            this.vm.pushInstruction("STORE", addr);
         }
         
         return value;
@@ -609,7 +612,8 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         // Update in VM memory
         const addr = this.variableAddresses.get(targetVar);
         if (addr !== undefined) {
-            this.vm.storeValue(addr, value);
+            this.vm.pushInstruction("LDCN", value);
+            this.vm.pushInstruction("STORE", addr);
         }
         
         return value;
@@ -811,7 +815,8 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
                     // Allocate memory
                     const address = this.vm.allocateVariable();
                     this.variableAddresses.set(paramName, address);
-                    this.vm.storeValue(address, targetState.value);
+                    this.vm.pushInstruction("LDCN", targetState.value);
+                    this.vm.pushInstruction("STORE", address);
                 }
             } else {
                 throw new Error(`Parameter ${paramName} requires a reference`);
