@@ -28,8 +28,7 @@ import { ParenExprContext } from "./RustParser.js";
 import { IntContext } from "./RustParser.js";
 import { AddSubOpContext } from "./RustParser.js";
 import { ArgListContext } from "./RustParser.js";
-import { IntegerTypeContext } from "./RustParser.js";
-import { ReferenceTypeContext } from "./RustParser.js";
+import { TypeContext } from "./RustParser.js";
 import { BreakStatementContext } from "./RustParser.js";
 
 
@@ -313,29 +312,15 @@ export class RustListener implements ParseTreeListener {
      */
     exitArgList?: (ctx: ArgListContext) => void;
     /**
-     * Enter a parse tree produced by the `integerType`
-     * labeled alternative in `RustParser.type`.
+     * Enter a parse tree produced by `RustParser.type`.
      * @param ctx the parse tree
      */
-    enterIntegerType?: (ctx: IntegerTypeContext) => void;
+    enterType?: (ctx: TypeContext) => void;
     /**
-     * Exit a parse tree produced by the `integerType`
-     * labeled alternative in `RustParser.type`.
+     * Exit a parse tree produced by `RustParser.type`.
      * @param ctx the parse tree
      */
-    exitIntegerType?: (ctx: IntegerTypeContext) => void;
-    /**
-     * Enter a parse tree produced by the `referenceType`
-     * labeled alternative in `RustParser.type`.
-     * @param ctx the parse tree
-     */
-    enterReferenceType?: (ctx: ReferenceTypeContext) => void;
-    /**
-     * Exit a parse tree produced by the `referenceType`
-     * labeled alternative in `RustParser.type`.
-     * @param ctx the parse tree
-     */
-    exitReferenceType?: (ctx: ReferenceTypeContext) => void;
+    exitType?: (ctx: TypeContext) => void;
     /**
      * Enter a parse tree produced by `RustParser.breakStatement`.
      * @param ctx the parse tree

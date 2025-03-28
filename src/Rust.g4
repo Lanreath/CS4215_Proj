@@ -63,7 +63,7 @@ expressionStatement
 // Order of operations
 expression
     : '(' expression ')'                               # parenExpr
-    | '&' 'mut'? target=expression                     # referenceExpr
+    | '&' mutFlag='mut'? target=expression             # referenceExpr
     | '*' target=expression                            # dereferenceExpr
     | left=expression op=('>'|'>='|'<'|'<='|'=='|'!=') right=expression  # equalityOp
     | left=expression op=('*'|'/') right=expression    # mulDivOp
@@ -80,8 +80,7 @@ argList
 
 // Updated to include reference types
 type
-    : 'i64'                # integerType
-    | '&' 'mut'? type      # referenceType
+    : (refFlag='&' mutFlag='mut'?)? 'i64'
     ;
 
 breakStatement

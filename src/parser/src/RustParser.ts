@@ -702,7 +702,7 @@ export class RustParser extends antlr.Parser {
                 if (_la === 4) {
                     {
                     this.state = 145;
-                    this.match(RustParser.T__3);
+                    (localContext as ReferenceExprContext)._mutFlag = this.match(RustParser.T__3);
                     }
                 }
 
@@ -924,39 +924,30 @@ export class RustParser extends antlr.Parser {
         this.enterRule(localContext, 30, RustParser.RULE_type);
         let _la: number;
         try {
-            this.state = 191;
+            this.enterOuterAlt(localContext, 1);
+            {
+            this.state = 189;
             this.errorHandler.sync(this);
-            switch (this.tokenStream.LA(1)) {
-            case RustParser.T__27:
-                localContext = new IntegerTypeContext(localContext);
-                this.enterOuterAlt(localContext, 1);
+            _la = this.tokenStream.LA(1);
+            if (_la === 18) {
                 {
                 this.state = 185;
-                this.match(RustParser.T__27);
-                }
-                break;
-            case RustParser.T__17:
-                localContext = new ReferenceTypeContext(localContext);
-                this.enterOuterAlt(localContext, 2);
-                {
-                this.state = 186;
-                this.match(RustParser.T__17);
-                this.state = 188;
+                localContext._refFlag = this.match(RustParser.T__17);
+                this.state = 187;
                 this.errorHandler.sync(this);
                 _la = this.tokenStream.LA(1);
                 if (_la === 4) {
                     {
-                    this.state = 187;
-                    this.match(RustParser.T__3);
+                    this.state = 186;
+                    localContext._mutFlag = this.match(RustParser.T__3);
                     }
                 }
 
-                this.state = 190;
-                this.type_();
                 }
-                break;
-            default:
-                throw new antlr.NoViableAltException(this);
+            }
+
+            this.state = 191;
+            this.match(RustParser.T__27);
             }
         }
         catch (re) {
@@ -1032,13 +1023,13 @@ export class RustParser extends antlr.Parser {
         13,1,13,1,13,1,13,1,13,1,13,1,13,3,13,157,8,13,1,13,1,13,1,13,3,
         13,162,8,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,1,13,5,13,173,
         8,13,10,13,12,13,176,9,13,1,14,1,14,1,14,5,14,181,8,14,10,14,12,
-        14,184,9,14,1,15,1,15,1,15,3,15,189,8,15,1,15,3,15,192,8,15,1,16,
+        14,184,9,14,1,15,1,15,3,15,188,8,15,3,15,190,8,15,1,15,1,15,1,16,
         1,16,1,16,1,16,0,1,26,17,0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,
         30,32,0,3,1,0,19,24,2,0,17,17,25,25,1,0,26,27,211,0,37,1,0,0,0,2,
         51,1,0,0,0,4,53,1,0,0,0,6,59,1,0,0,0,8,70,1,0,0,0,10,81,1,0,0,0,
         12,89,1,0,0,0,14,93,1,0,0,0,16,105,1,0,0,0,18,117,1,0,0,0,20,119,
         1,0,0,0,22,134,1,0,0,0,24,136,1,0,0,0,26,161,1,0,0,0,28,177,1,0,
-        0,0,30,191,1,0,0,0,32,193,1,0,0,0,34,36,3,2,1,0,35,34,1,0,0,0,36,
+        0,0,30,189,1,0,0,0,32,193,1,0,0,0,34,36,3,2,1,0,35,34,1,0,0,0,36,
         39,1,0,0,0,37,35,1,0,0,0,37,38,1,0,0,0,38,40,1,0,0,0,39,37,1,0,0,
         0,40,41,5,0,0,1,41,1,1,0,0,0,42,52,3,6,3,0,43,52,3,8,4,0,44,52,3,
         22,11,0,45,52,3,14,7,0,46,52,3,16,8,0,47,52,3,20,10,0,48,52,3,4,
@@ -1081,12 +1072,12 @@ export class RustParser extends antlr.Parser {
         1,0,0,0,172,169,1,0,0,0,173,176,1,0,0,0,174,172,1,0,0,0,174,175,
         1,0,0,0,175,27,1,0,0,0,176,174,1,0,0,0,177,182,3,26,13,0,178,179,
         5,11,0,0,179,181,3,26,13,0,180,178,1,0,0,0,181,184,1,0,0,0,182,180,
-        1,0,0,0,182,183,1,0,0,0,183,29,1,0,0,0,184,182,1,0,0,0,185,192,5,
-        28,0,0,186,188,5,18,0,0,187,189,5,4,0,0,188,187,1,0,0,0,188,189,
-        1,0,0,0,189,190,1,0,0,0,190,192,3,30,15,0,191,185,1,0,0,0,191,186,
-        1,0,0,0,192,31,1,0,0,0,193,194,5,29,0,0,194,195,5,2,0,0,195,33,1,
+        1,0,0,0,182,183,1,0,0,0,183,29,1,0,0,0,184,182,1,0,0,0,185,187,5,
+        18,0,0,186,188,5,4,0,0,187,186,1,0,0,0,187,188,1,0,0,0,188,190,1,
+        0,0,0,189,185,1,0,0,0,189,190,1,0,0,0,190,191,1,0,0,0,191,192,5,
+        28,0,0,192,31,1,0,0,0,193,194,5,29,0,0,194,195,5,2,0,0,195,33,1,
         0,0,0,19,37,51,55,61,74,86,97,101,109,117,134,146,156,161,172,174,
-        182,188,191
+        182,187,189
     ];
 
     private static __ATN: antlr.ATN;
@@ -1698,6 +1689,7 @@ export class DereferenceExprContext extends ExpressionContext {
     }
 }
 export class ReferenceExprContext extends ExpressionContext {
+    public _mutFlag?: Token | null;
     public _target?: ExpressionContext;
     public constructor(ctx: ExpressionContext) {
         super(ctx.parent, ctx.invokingState);
@@ -1976,60 +1968,27 @@ export class ArgListContext extends antlr.ParserRuleContext {
 
 
 export class TypeContext extends antlr.ParserRuleContext {
+    public _refFlag?: Token | null;
+    public _mutFlag?: Token | null;
     public constructor(parent: antlr.ParserRuleContext | null, invokingState: number) {
         super(parent, invokingState);
     }
     public override get ruleIndex(): number {
         return RustParser.RULE_type;
     }
-    public override copyFrom(ctx: TypeContext): void {
-        super.copyFrom(ctx);
-    }
-}
-export class IntegerTypeContext extends TypeContext {
-    public constructor(ctx: TypeContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
     public override enterRule(listener: RustListener): void {
-        if(listener.enterIntegerType) {
-             listener.enterIntegerType(this);
+        if(listener.enterType) {
+             listener.enterType(this);
         }
     }
     public override exitRule(listener: RustListener): void {
-        if(listener.exitIntegerType) {
-             listener.exitIntegerType(this);
+        if(listener.exitType) {
+             listener.exitType(this);
         }
     }
     public override accept<Result>(visitor: RustVisitor<Result>): Result | null {
-        if (visitor.visitIntegerType) {
-            return visitor.visitIntegerType(this);
-        } else {
-            return visitor.visitChildren(this);
-        }
-    }
-}
-export class ReferenceTypeContext extends TypeContext {
-    public constructor(ctx: TypeContext) {
-        super(ctx.parent, ctx.invokingState);
-        super.copyFrom(ctx);
-    }
-    public type(): TypeContext {
-        return this.getRuleContext(0, TypeContext)!;
-    }
-    public override enterRule(listener: RustListener): void {
-        if(listener.enterReferenceType) {
-             listener.enterReferenceType(this);
-        }
-    }
-    public override exitRule(listener: RustListener): void {
-        if(listener.exitReferenceType) {
-             listener.exitReferenceType(this);
-        }
-    }
-    public override accept<Result>(visitor: RustVisitor<Result>): Result | null {
-        if (visitor.visitReferenceType) {
-            return visitor.visitReferenceType(this);
+        if (visitor.visitType) {
+            return visitor.visitType(this);
         } else {
             return visitor.visitChildren(this);
         }
