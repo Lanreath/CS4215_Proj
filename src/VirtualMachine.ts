@@ -46,6 +46,10 @@ export class VirtualMachine {
   private view: DataView;
   private memSize: number;
 
+    // Label support for VM jumps
+    private labels: Map<string, number> = new Map();
+    private forwardRefs: Map<string, number[]> = new Map();
+
   private static readonly OS_BASE = 0;
   private static readonly RS_BASE = 1024;
 
@@ -119,6 +123,62 @@ export class VirtualMachine {
     this.instructions[instructionIndex].value = targetIndex;
   }
 
+      // Add a label at the current instruction counter
+      public addLabel(label: string): void {
+        console.log(`[VM] Adding label '${label}' at instruction ${this.ic}`);
+        this.labels.set(label, this.ic);
+
+        // Resolve any forward references to this label
+        if (this.forwardRefs.has(label)) {
+            const refs = this.forwardRefs.get(label)!;
+            console.log(`[VM] Resolving ${refs.length} forward references to label '${label}'`);
+            
+            for (const instructionIndex of refs) {
+                this.setInstructionTarget(instructionIndex, this.ic);
+                console.log(`[VM] Resolved jump at instruction ${instructionIndex} to target ${this.ic}`);
+            }
+            
+            // Clear the resolved references
+            this.forwardRefs.delete(label);
+        }
+    }
+    // Push a goto instruction that will be resolved later
+    public pushGoto(label: string): number {
+      console.log(`[VM] Pushing GOTO to '${label}'`);
+      const idx = this.pushInstruction(InstructionTag.GOTO);
+      
+      // If the label already exists, set the target
+      if (this.labels.has(label)) {
+          this.setInstructionTarget(idx-1, this.labels.get(label)!);
+      } else {
+          if (!this.forwardRefs.has(label)) {
+              this.forwardRefs.set(label, []);
+          }
+          this.forwardRefs.get(label)!.push(idx-1);
+          console.log(`[VM] Added forward reference to label '${label}' from instruction ${idx-1}`);
+      }
+      
+      return idx;
+  }
+
+  // Push a jump-on-false instruction that will be resolved later
+  public pushJof(label: string): number {
+      console.log(`[VM] Pushing JOF to '${label}'`);
+      const idx = this.pushInstruction(InstructionTag.JOF);
+      
+      // If the label already exists, set the target
+      if (this.labels.has(label)) {
+          this.setInstructionTarget(idx-1, this.labels.get(label)!);
+      } else {
+          if (!this.forwardRefs.has(label)) {
+              this.forwardRefs.set(label, []);
+          }
+          this.forwardRefs.get(label)!.push(idx-1);
+          console.log(`[VM] Added forward reference to label '${label}' from instruction ${idx-1}`);
+      }
+      
+      return idx;
+  }
   private pushOperand(value: number): void {
     const addr = VirtualMachine.OS_BASE + this.osPtr * 4;
     if (addr >= VirtualMachine.RS_BASE) {
@@ -310,29 +370,27 @@ export class VirtualMachine {
           }
           case InstructionTag.GOTO: {
             if (instr.value === undefined) {
-              throw new Error("GOTO instruction missing target");
+                throw new Error("GOTO instruction missing target");
             }
             console.log(`[VM] GOTO: Jumping to ${instr.value}`);
             this.pc = instr.value;
             break;
-          }
+        }
           case InstructionTag.JOF: {
             if (instr.value === undefined) {
-              throw new Error("JOF instruction missing target");
+                throw new Error("JOF instruction missing target");
             }
-
+            
             const condition = this.popOperand();
             // Jump if the condition is false (0)
             if (condition === 0) {
-              console.log(
-                `[VM] JOF: Condition false, jumping to ${instr.value}`
-              );
-              this.pc = instr.value;
+                console.log(`[VM] JOF: Condition false, jumping to ${instr.value}`);
+                this.pc = instr.value;
             } else {
-              console.log(`[VM] JOF: Condition true, continuing`);
+                console.log(`[VM] JOF: Condition true, continuing`);
             }
             break;
-          }
+        }
           case InstructionTag.LOAD: {
             if (instr.value === undefined) {
               throw new Error("LOAD instruction missing address");

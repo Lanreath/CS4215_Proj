@@ -341,7 +341,6 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     public reset(): void {
         // Clear variable tracking
         this.variableStates = new Map();
-        this.variableAddresses = new Map();
         this.referenceMap = new Map();
         
         // Reset scopes
@@ -350,7 +349,6 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         // Reset function tracking
         this.functionDefinitions = new Map();
         this.currentFunctionReturnType = null;
-        this.functionReturnValue = null;
         
         // Reset control flow flags
         this.isReturning = false;
@@ -386,6 +384,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         
         // Check if this is a reference type
         const isRefType = ctx.type()._refFlag ? true : false;
+        const isRefExpr = ctx._value instanceof rp.ReferenceExprContext;
         
         // Generate VM instructions for the initializer expression
         this.visit(ctx._value);
@@ -464,12 +463,6 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         // Evaluate the expression, which puts its value on the stack
         this.visit(ctx.expression());
         
-        // Get the memory address
-        const addr = this.variableAddresses.get(target);
-        if (addr === undefined) {
-            throw new Error(`No memory allocated for variable ${target}`);
-        }
-
         // Check expression
         if (ctx.expression() instanceof rp.ReferenceExprContext) {
             throw new BorrowError("Cannot assign a reference directly");
@@ -647,17 +640,6 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         return 0;
     }
 
-        // Get the value
-        const state = this.lookupVariable(varName);
-        if (!state) {
-            throw new OwnershipError(`Variable ${varName} not declared`);
-        }
-
-        // Push the value onto the stack
-        this.vm.pushInstruction("LOAD", state.address);
-        return 0;
-    }
-
     // Visit a parse tree produced by RustParser#returnStatement
     visitReturnStatement(ctx: rp.ReturnStatementContext): number {
         // Check if we're in a function
@@ -692,7 +674,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
             throw new Error(`Undefined function: ${funcName}`);
         }
 
-        const params = funcDef.paramList()?.param() || [];
+        const params = funcDef.paramList.param() || [];
         const args = ctx.argList()?.expression() || [];
         
         if (params.length !== args.length) {
@@ -705,9 +687,6 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
             // Reset return state
             this.isReturning = false;
             
-            // Process parameters - match arguments with parameters
-            const params = funcDef.paramList.param() || [];
-            const args = ctx.argList()?.expression() || [];
 
         // Evaluate arguments and set up parameters
         for (let i = 0; i < args.length; i++) {
@@ -717,12 +696,9 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
             // Set up the parameter
             const param = params[i];
             const paramName = param._name?.text;
-            const paramType = param.type()?.getText();
+            const paramType = param.type();
            
             // Evaluate arguments and assign to parameters
-                const param = params[i];
-                const paramName = param._name?.text;
-                const paramType = param.type();
                 
                 if (!paramName || !paramType) {
                     throw new Error(`Invalid parameter at position ${i}`);
@@ -835,14 +811,8 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         // Check read access
         this.checkReadAccess(name);
         
-        // Get the memory address
-        const addr = this.variableAddresses.get(name);
-        if (addr === undefined) {
-            throw new Error(`No memory allocated for variable ${name}`);
-        }
-        
         // Load variable value from memory address
-        this.vm.pushInstruction(InstructionTag.LOAD, addr);
+        this.vm.pushInstruction(InstructionTag.LOAD, state.address);
         
         return 0;
     }

@@ -4,8 +4,6 @@ import { RustLexer } from '../parser/src/RustLexer';
 import { RustParser } from '../parser/src/RustParser';
 import { RustEvaluatorVisitor } from '../RustEvaluator';
 import { VirtualMachine } from '../VirtualMachine';
-import * as fs from 'fs';
-import * as path from 'path';
 
 // Create a fresh evaluator for each session
 const vm = new VirtualMachine();
