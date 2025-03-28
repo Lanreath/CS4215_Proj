@@ -15,6 +15,9 @@ enum InstructionTag {
   JOF = "JOF",
   LOAD = "LOAD",
   STORE = "STORE",
+  FREE = "FREE",
+  CALL = "CALL",
+  RETURN = "RETURN",
 }
 export class Instruction {
   public tag: InstructionTag;
@@ -51,10 +54,6 @@ export class VirtualMachine {
   private pc: number = 0; // Program counter
   private osPtr: number = 0; // Operand stack pointer
   private rsPtr: number = 0; // Return stack pointer
-
-  // Label support for VM jumps
-  private labels: Map<string, number> = new Map();
-  private forwardRefs: Map<string, number[]> = new Map();
 
   constructor(memSize: number = 4096) {
     // Ensure this is large enough
@@ -140,92 +139,32 @@ export class VirtualMachine {
     return value;
   }
 
-  // Add a label at the current instruction counter
-  private addLabel(label: string): void {
-    console.log(`[VM] Adding label '${label}' at instruction ${this.ic}`);
-    this.labels.set(label, this.ic);
-
-    // Resolve any forward references to this label
-    if (this.forwardRefs.has(label)) {
-      const refs = this.forwardRefs.get(label)!;
-      console.log(
-        `[VM] Resolving ${refs.length} forward references to label '${label}'`
-      );
-
-      for (const instructionIndex of refs) {
-        this.setInstructionTarget(instructionIndex, this.ic);
-        console.log(
-          `[VM] Resolved jump at instruction ${instructionIndex} to target ${this.ic}`
-        );
-      }
-
-      // Clear the resolved references
-      this.forwardRefs.delete(label);
-    }
-  }
-
-  // Push a goto instruction that will be resolved later
-  private pushGoto(label: string): number {
-    console.log(`[VM] Pushing GOTO to '${label}'`);
-    const idx = this.pushInstruction(InstructionTag.GOTO);
-
-    // If the label already exists, set the target
-    if (this.labels.has(label)) {
-      this.setInstructionTarget(idx - 1, this.labels.get(label)!);
-    } else {
-      if (!this.forwardRefs.has(label)) {
-        this.forwardRefs.set(label, []);
-      }
-      this.forwardRefs.get(label)!.push(idx - 1);
-      console.log(
-        `[VM] Added forward reference to label '${label}' from instruction ${
-          idx - 1
-        }`
-      );
-    }
-
-    return idx;
-  }
-
-  // Push a jump-on-false instruction that will be resolved later
-  private pushJof(label: string): number {
-    console.log(`[VM] Pushing JOF to '${label}'`);
-    const idx = this.pushInstruction(InstructionTag.JOF);
-
-    // If the label already exists, set the target
-    if (this.labels.has(label)) {
-      this.setInstructionTarget(idx - 1, this.labels.get(label)!);
-    } else {
-      if (!this.forwardRefs.has(label)) {
-        this.forwardRefs.set(label, []);
-      }
-      this.forwardRefs.get(label)!.push(idx - 1);
-      console.log(
-        `[VM] Added forward reference to label '${label}' from instruction ${
-          idx - 1
-        }`
-      );
-    }
-
-    return idx;
-  }
-
-  private loadSymbol(addr: number): number {
-    if (addr < VirtualMachine.RS_BASE || addr >= this.memSize) {
+  private load(addr: number): number {
+    const heapAddr = VirtualMachine.RS_BASE + addr;
+    if (heapAddr < VirtualMachine.RS_BASE || heapAddr >= this.memSize) {
       throw new Error(`Invalid memory address for load: ${addr}`);
     }
-    const value = this.view.getInt32(addr);
+    const value = this.view.getInt32(heapAddr);
     if (isNaN(value)) {
       throw new Error(`Invalid symbol at address ${addr}`);
     }
     return value;
   }
 
-  private storeSymbol(addr: number, value: number): void {
-    if (addr < VirtualMachine.RS_BASE || addr >= this.memSize) {
+  private store(addr: number, value: number): void {
+    const heapAddr = VirtualMachine.RS_BASE + addr;
+    if (heapAddr < VirtualMachine.RS_BASE || heapAddr >= this.memSize) {
       throw new Error(`Invalid memory address for store: ${addr}`);
     }
-    this.view.setInt32(addr, value);
+    this.view.setInt32(heapAddr, value);
+  }
+
+  public free(addr: number): void {
+    const heapAddr = VirtualMachine.RS_BASE + addr;
+    if (heapAddr < VirtualMachine.RS_BASE || heapAddr >= this.memSize) {
+      throw new Error(`Invalid memory address for free: ${addr}`);
+    }
+    this.view.setInt32(heapAddr, 0);
   }
 
   public allocateVariable(): number {
@@ -384,7 +323,7 @@ export class VirtualMachine {
             if (instr.value === undefined) {
               throw new Error("LOAD instruction missing address");
             }
-            const value = this.loadSymbol(instr.value);
+            const value = this.load(instr.value);
             console.log(`[VM] LOAD: Loaded symbol at ${instr.value}: ${value}`);
             this.pushOperand(value);
             break;
@@ -395,7 +334,30 @@ export class VirtualMachine {
             }
             const value = this.popOperand();
             console.log(`[VM] STORE: Storing ${value} at symbol ${instr.value}`);
-            this.storeSymbol(instr.value, value);
+            this.store(instr.value, value);
+            break;
+          }
+          case InstructionTag.FREE: {
+            if (instr.value === undefined) {
+              throw new Error("FREE instruction missing address");
+            }
+            console.log(`[VM] FREE: Freeing symbol at ${instr.value}`);
+            this.free(instr.value);
+            break;
+          }
+          case InstructionTag.CALL: {
+            if (instr.value === undefined) {
+              throw new Error("CALL instruction missing address");
+            }
+            console.log(`[VM] CALL: Calling function at ${instr.value}`);
+            this.pushOperand(this.pc + 1); // Return address
+            this.pc = instr.value;
+            break;
+          }
+          case InstructionTag.RETURN: {
+            const returnAddr = this.popOperand();
+            console.log(`[VM] RETURN: Returning to ${returnAddr}`);
+            this.pc = returnAddr;
             break;
           }
           default:
@@ -427,8 +389,6 @@ export class VirtualMachine {
     this.rsPtr = VirtualMachine.RS_BASE;
 
     // Clear memory
-    this.labels.clear();
-    this.forwardRefs.clear();
     this.memory = new ArrayBuffer(this.memSize);
     this.view = new DataView(this.memory);
   }

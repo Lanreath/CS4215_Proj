@@ -28,8 +28,7 @@ import { ParenExprContext } from "./RustParser.js";
 import { IntContext } from "./RustParser.js";
 import { AddSubOpContext } from "./RustParser.js";
 import { ArgListContext } from "./RustParser.js";
-import { IntegerTypeContext } from "./RustParser.js";
-import { ReferenceTypeContext } from "./RustParser.js";
+import { TypeContext } from "./RustParser.js";
 import { BreakStatementContext } from "./RustParser.js";
 
 
@@ -204,19 +203,11 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitArgList?: (ctx: ArgListContext) => Result;
     /**
-     * Visit a parse tree produced by the `integerType`
-     * labeled alternative in `RustParser.type`.
+     * Visit a parse tree produced by `RustParser.type`.
      * @param ctx the parse tree
      * @return the visitor result
      */
-    visitIntegerType?: (ctx: IntegerTypeContext) => Result;
-    /**
-     * Visit a parse tree produced by the `referenceType`
-     * labeled alternative in `RustParser.type`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitReferenceType?: (ctx: ReferenceTypeContext) => Result;
+    visitType?: (ctx: TypeContext) => Result;
     /**
      * Visit a parse tree produced by `RustParser.breakStatement`.
      * @param ctx the parse tree

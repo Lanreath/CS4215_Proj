@@ -35,13 +35,25 @@ enum InstructionTag {
 class VariableState {
     state: BorrowState;
     mutable: boolean;
-    value: number;
+    address: number;
     borrowers: string[] = []; // Track which variables are borrowing this one
     
-    constructor(mutable: boolean, value: number = 0) {
+    constructor(mutable: boolean, address: number) {
         this.state = BorrowState.Owned;
         this.mutable = mutable;
-        this.value = value;
+        this.address = address;
+    }
+}
+
+class FunctionDefinition {
+    label: number;
+    paramList: rp.ParamListContext | null;
+    returnType: string | null;
+
+    constructor(label: number, params: rp.ParamListContext | null, returnType: string | null) {
+        this.label = label;
+        this.paramList = params;
+        this.returnType = returnType;
     }
 }
 
@@ -63,10 +75,9 @@ class BorrowError extends Error {
 export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements RustVisitor<number> {
     private vm: VirtualMachine;
     private variableStates: Map<string, VariableState>;
-    private variableAddresses: Map<string, number>;
     private referenceMap: Map<string, string>; // Maps reference names to their target
+    private functionDefinitions: Map<string, FunctionDefinition> = new Map();
     private lastCreatedReference: string | undefined; // Store the last created reference
-    private functionReturnValue: number | null = null;
     private isReturning: boolean = false;
     private currentFunctionReturnType: string | null = null;
 
@@ -78,7 +89,6 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         super();
         this.vm = vm || new VirtualMachine();
         this.variableStates = new Map<string, VariableState>();
-        this.variableAddresses = new Map<string, number>();
         this.referenceMap = new Map<string, string>();
         this.scopes = [new Map()];
     }
@@ -104,10 +114,11 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
                 this.releaseBorrow(name);
                 this.referenceMap.delete(name);
             }
+            const state = this.variableStates.get(name);
             
             // Remove the variable state and address
             this.variableStates.delete(name);
-            this.variableAddresses.delete(name);
+            this.vm.pushInstruction("FREE", state.address)
         }
     }
 
@@ -124,22 +135,17 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     }
 
     // Declare a variable in the current scope
-    private declareVariable(name: string, mutable: boolean, value: number = 0): void {
+    private declareVariable(name: string, mutable: boolean, addr: number): void {
         // Register in current scope
         const currentScope = this.scopes[this.scopes.length - 1];
         currentScope.set(name, true);
         
         // Create variable state
-        const state = new VariableState(mutable, value);
+        const state = new VariableState(mutable, addr);
         this.variableStates.set(name, state);
         
         // Allocate memory in VM
-        const address = this.vm.allocateVariable();
-        this.variableAddresses.set(name, address);
-        this.vm.pushInstruction("LDCN", value);
-        this.vm.pushInstruction("STORE", address);
-        
-        console.log(`[DEBUG] Declared variable: ${name}, mutable: ${mutable}, value: ${value}`);
+        console.log(`[DEBUG] Declared variable: ${name}, mutable: ${mutable}, addr: ${addr}`);
     }
 
     // Ownership management
@@ -314,7 +320,6 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     visitProg(ctx: rp.ProgContext): number {
         // Reset state for a new program
         this.variableStates.clear();
-        this.variableAddresses.clear();
         this.referenceMap.clear();
         this.scopes = [new Map()];
         
@@ -342,7 +347,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         console.log(`Declaring variable: ${name}, mutable: ${isMutable}`);
         
         // Check if this is a reference type
-        const isRefType = ctx.type && ctx.type().getText().includes('&');
+        const isRefType = ctx.type()._refFlag ? true : false;
         
         // Check if this is a reference expression
         const isRefExpr = ctx._value instanceof rp.ReferenceExprContext;
@@ -375,14 +380,8 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
                     targetState.borrowers.push(name);
                     
                     // Create a state for the new reference variable
-                    const refState = new VariableState(false, targetState.value);
+                    const refState = new VariableState(false, targetState.address);
                     this.variableStates.set(name, refState);
-                    
-                    // Allocate memory in VM
-                    const address = this.vm.allocateVariable();
-                    this.variableAddresses.set(name, address);
-                    this.vm.pushInstruction("LDCN", targetState.value);
-                    this.vm.pushInstruction("STORE", address);
                 }
                 
                 // Clear the lastCreatedReference after use
@@ -432,52 +431,42 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         if (targetState.state === BorrowState.BorrowedMutably) {
             throw new Error(`Cannot assign to ${target} while it is mutably borrowed`);
         }
+
+        // Check expression
+        if (ctx.expression() instanceof rp.ReferenceExprContext) {
+            throw new BorrowError("Cannot assign a reference directly");
+        }
         
         // Evaluate the expression
         const value = this.visit(ctx.expression());
         console.log(`Assigning value ${value} to ${target}`);
-        
-        // Update the variable's value
-        targetState.value = value;
-        
-        // Update in VM memory
-        const addr = this.variableAddresses.get(target);
-        if (addr !== undefined) {
-            this.vm.pushInstruction("LDCN", value);
-            this.vm.pushInstruction("STORE", addr);
-        }
+        this.vm.pushInstruction("STORE", targetState.address);
+
         
         return value;
     }
 
-// Visit a parse tree produced by RustParser#referenceExpr
+    // Visit a parse tree produced by RustParser#referenceExpr
     visitReferenceExpr(ctx: rp.ReferenceExprContext): number {
-        // Get the target expression (what is being borrowed)
-        let targetExpr;
-        if (ctx._target) {
-            targetExpr = ctx._target;
-        } else if (ctx.expression) {
-            targetExpr = ctx.expression();
-        } else if (ctx.getChild && typeof ctx.getChild === 'function' && ctx.getChild(1)) {
-            targetExpr = ctx.getChild(1);
-        }
-        
+        const targetExpr = ctx._target;
+        let targetVar;
+
         if (!targetExpr) {
             throw new BorrowError("Invalid reference syntax");
         }
-        
+     
         // Extract the variable name
-        let targetVar;
         if (targetExpr instanceof rp.IdentifierContext) {
             targetVar = targetExpr.getText();
-        } else if (typeof targetExpr.getText === 'function') {
-            targetVar = targetExpr.getText();
+        } else if (targetExpr instanceof rp.ReferenceExprContext || targetExpr instanceof rp.DereferenceExprContext) {
+            // TODO: Handle nested references
+            throw new BorrowError("Nested references not supported");
         } else {
             throw new BorrowError("Can only borrow variables directly");
         }
         
         // Check if we're dealing with a &mut or just &
-        const isMutable = ctx.getText().includes('&mut');
+        const isMutable = ctx._mutFlag ? true : false;
         
         // Generate a synthetic name for the reference
         const refName = `ref_to_${targetVar}_${Date.now()}`;
@@ -493,14 +482,11 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         const targetState = this.lookupVariable(targetVar);
         if (targetState) {
             // Reference variables are always immutable (unless explicitly re-declared as mut)
-            this.declareVariable(refName, false, targetState.value);
+            // this.declareVariable(refName, false, targetState.value);
         }
         
         // Store the reference name in a property so we can access it in variableDeclaration
         this.lastCreatedReference = refName;
-        
-        // Push a dummy value for the VM
-        this.vm.pushInstruction("LDCN", 0);
         
         return 0; // Return a number per the visitor contract
     }
@@ -508,29 +494,12 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
     // Visit a parse tree produced by RustParser#dereferenceExpr
     visitDereferenceExpr(ctx: rp.DereferenceExprContext): number {
         // Get the reference expression (what is being dereferenced)
-        let refExpr;
-        if (ctx._target) {
-            refExpr = ctx._target;
-        } else if (ctx.expression) {
-            refExpr = ctx.expression();
-        } else if (ctx.getChild && typeof ctx.getChild === 'function' && ctx.getChild(1)) {
-            refExpr = ctx.getChild(1);
+        const refExpr = ctx._target;
+        if (!refExpr || !(refExpr instanceof rp.IdentifierContext)) {
+            throw new BorrowError("Can only dereference variables");
         }
-        
-        if (!refExpr) {
-            throw new BorrowError("Invalid dereference syntax");
-        }
-        
-        // Extract the reference variable name
-        let refName;
-        if (refExpr instanceof rp.IdentifierContext) {
-            refName = refExpr.getText();
-        } else if (typeof refExpr.getText === 'function') {
-            refName = refExpr.getText();
-        } else {
-            throw new BorrowError("Can only dereference reference variables directly");
-        }
-        
+
+        const refName = refExpr.getText();
         // Check if this is actually a reference
         if (!this.isReference(refName)) {
             throw new BorrowError(`${refName} is not a reference`);
@@ -549,9 +518,9 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         }
         
         // Push the dereferenced value onto the stack
-        this.vm.pushInstruction("LDCN", targetState.value);
+        this.vm.pushInstruction("LOAD", targetState.address);
         
-        return targetState.value;
+        return 0;
     }
 
     // Visit a parse tree produced by RustParser#dereferenceAssignment
@@ -602,19 +571,15 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         if (!targetState) {
             throw new BorrowError(`Target of reference ${refName} no longer exists`);
         }
+
+        // Check value expression
+        if (ctx._value instanceof rp.ReferenceExprContext) {
+            throw new BorrowError("Cannot assign a reference directly");
+        }
         
         // Evaluate the value expression
         const value = this.visit(ctx._value);
-        
-        // Update the target value
-        targetState.value = value;
-        
-        // Update in VM memory
-        const addr = this.variableAddresses.get(targetVar);
-        if (addr !== undefined) {
-            this.vm.pushInstruction("LDCN", value);
-            this.vm.pushInstruction("STORE", addr);
-        }
+        this.vm.pushInstruction("STORE", targetState.address);
         
         return value;
     }
@@ -635,7 +600,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
                     
                     // Check for early return
                     if (this.isReturning) {
-                        return this.functionReturnValue !== null ? this.functionReturnValue : result;
+                        return result;
                     }
                 }
             }
@@ -646,7 +611,6 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
                 
                 // If this block is in a function, this could be an implicit return
                 if (this.currentFunctionReturnType !== null) {
-                    this.functionReturnValue = result;
                     this.isReturning = true;
                 }
             }
@@ -670,11 +634,10 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         if (!state) {
             throw new OwnershipError(`Variable ${varName} not declared`);
         }
-        
-        // Push value onto stack
-        this.vm.pushInstruction("LDCN", state.value);
-        
-        return state.value;
+
+        // Push the value onto the stack
+        this.vm.pushInstruction("LOAD", state.address);
+        return 0;
     }
 
     // Visit a parse tree produced by RustParser#returnStatement
@@ -695,7 +658,6 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         }
         
         // Set the return flags
-        this.functionReturnValue = returnValue;
         this.isReturning = true;
         
         return returnValue;
@@ -703,10 +665,6 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
 
     // Visit a parse tree produced by RustParser#functionCall
     visitFunctionCall(ctx: rp.FunctionCallContext): number {
-        if (!ctx.IDENTIFIER() || !ctx.IDENTIFIER().getText()) {
-            throw new Error("Invalid function call");
-        }
-        
         const funcName = ctx.IDENTIFIER().getText();
         console.log(`Calling function: ${funcName}`);
         
@@ -721,11 +679,10 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         
         try {
             // Reset return state
-            this.functionReturnValue = null;
             this.isReturning = false;
             
             // Process parameters - match arguments with parameters
-            const params = funcDef.paramList()?.param() || [];
+            const params = funcDef.paramList.param() || [];
             const args = ctx.argList()?.expression() || [];
             
             if (params.length !== args.length) {
@@ -736,7 +693,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
             for (let i = 0; i < params.length; i++) {
                 const param = params[i];
                 const paramName = param._name?.text;
-                const paramType = param.type()?.getText();
+                const paramType = param.type();
                 
                 if (!paramName || !paramType) {
                     throw new Error(`Invalid parameter at position ${i}`);
@@ -745,36 +702,23 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
                 this.processParameter(paramName, paramType, args[i]);
             }
             
-            // Set current function return type
-            this.currentFunctionReturnType = funcDef._returnType?.getText() || null;
-            
-            // Execute the function body
-            let result = this.visit(funcDef._functionBody);
-            
-            // If a return statement was executed, use that value
-            if (this.isReturning && this.functionReturnValue !== null) {
-                result = this.functionReturnValue;
-            }
-            
-            // Reset return state
-            this.currentFunctionReturnType = null;
-            this.functionReturnValue = null;
-            this.isReturning = false;
-            
-            return result;
         } finally {
             // Always exit the function scope
             this.exitScope();
+            // Push the function call instruction
+            this.vm.pushInstruction("CALL", funcDef.label);
         }
+        return 0;
+
     }
 
     // Helper method to process function parameters
-    private processParameter(paramName: string, paramType: string, argExpr: rp.ExpressionContext): void {
+    private processParameter(paramName: string, paramType: rp.TypeContext, argExpr: rp.ExpressionContext): void {
         // Check if this is a reference parameter
-        const isMutableRef = paramType.startsWith('&mut');
-        const isImmutableRef = paramType.startsWith('&') && !isMutableRef;
+        const isRef = paramType._refFlag ? true : false;
+        const isMutableRef = isRef && paramType._mutFlag ? true : false;
         
-        if (isMutableRef || isImmutableRef) {
+        if (isMutableRef || isRef) {
             // Parameter is a reference
             if (argExpr instanceof rp.ReferenceExprContext) {
                 // Extract target variable name
@@ -786,8 +730,6 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
                 // Get target variable name
                 let targetVar: string;
                 if (targetExpr instanceof rp.IdentifierContext) {
-                    targetVar = targetExpr.getText();
-                } else if (typeof targetExpr.getText === 'function') {
                     targetVar = targetExpr.getText();
                 } else {
                     throw new Error(`Invalid reference target for parameter ${paramName}`);
@@ -804,19 +746,13 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
                 const targetState = this.lookupVariable(targetVar);
                 if (targetState) {
                     // Create a variable state for the parameter
-                    const paramState = new VariableState(false, targetState.value);
+                    const paramState = new VariableState(false, targetState.address);
                     this.variableStates.set(paramName, paramState);
                     const currentScope = this.scopes[this.scopes.length - 1];
                     currentScope.set(paramName, true);
                     
                     // Add to reference map
                     this.referenceMap.set(paramName, targetVar);
-                    
-                    // Allocate memory
-                    const address = this.vm.allocateVariable();
-                    this.variableAddresses.set(paramName, address);
-                    this.vm.pushInstruction("LDCN", targetState.value);
-                    this.vm.pushInstruction("STORE", address);
                 }
             } else {
                 throw new Error(`Parameter ${paramName} requires a reference`);
@@ -911,7 +847,6 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         return result;
     }
 
-    private functionDefinitions: Map<string, rp.FunctionDeclarationContext> = new Map();
 
     // Visit a parse tree produced by RustParser#functionDeclaration
     visitFunctionDeclaration(ctx: rp.FunctionDeclarationContext): number {
@@ -920,11 +855,31 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> imple
         }
         
         const funcName = ctx._name.text;
+        const label = this.vm.getInstructionCounter();
+        const params = ctx.paramList()
+        const declReturnType = ctx._returnType?.getText() || null;
+        const fnDef = new FunctionDefinition(label, params, declReturnType);
         console.log(`Defining function: ${funcName}`);
-        
+
         // Store the function definition for later use
-        this.functionDefinitions.set(funcName, ctx);
+        this.functionDefinitions.set(funcName, fnDef);
         
+        // Set current function return type
+        this.currentFunctionReturnType = fnDef.returnType || null;
+        
+        // Visit the function body
+        this.visit(ctx._functionBody);
+        
+        // TODO: Implement function return type checking
+        // if (this.currentFunctionReturnType !== functionReturnType) {
+        //     throw new Error(`Function ${funcName} expects return type ${this.currentFunctionReturnType} but got ${functionReturnType}`);
+        // } 
+
+        // Reset return state
+        this.currentFunctionReturnType = null;
+        this.isReturning = false;
+
+        this.vm.pushInstruction("RETURN");
         // Functions don't produce a value at declaration time
         return 0;
     }
