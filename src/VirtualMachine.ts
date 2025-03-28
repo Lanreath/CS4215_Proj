@@ -151,6 +151,7 @@ export class VirtualMachine {
     return value;
   }
 
+
   private store(addr: number, value: number): void {
     const heapAddr = VirtualMachine.RS_BASE + addr;
     if (heapAddr < VirtualMachine.RS_BASE || heapAddr >= this.memSize) {
@@ -159,13 +160,26 @@ export class VirtualMachine {
     this.view.setInt32(heapAddr, value);
   }
 
+
+  private popTwoOperands(): [number, number] {
+      if (this.osPtr < 2) {
+          throw new Error("Not enough operands for binary operation");
+      }
+        
+      const b = this.popOperand();
+      const a = this.popOperand();
+      return [a, b];
+  }
+
   public free(addr: number): void {
     const heapAddr = VirtualMachine.RS_BASE + addr;
     if (heapAddr < VirtualMachine.RS_BASE || heapAddr >= this.memSize) {
       throw new Error(`Invalid memory address for free: ${addr}`);
+
     }
     this.view.setInt32(heapAddr, 0);
   }
+
 
   public allocateVariable(): number {
     const addr = this.rsPtr;
