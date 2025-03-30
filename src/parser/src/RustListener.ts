@@ -24,8 +24,8 @@ import { EqualityOpContext } from "./RustParser.js";
 import { FunctionCallContext } from "./RustParser.js";
 import { UnaryOpContext } from "./RustParser.js";
 import { MulDivOpContext } from "./RustParser.js";
-import { ParenExprContext } from "./RustParser.js";
 import { IntContext } from "./RustParser.js";
+import { ParenExprContext } from "./RustParser.js";
 import { AddSubOpContext } from "./RustParser.js";
 import { ArgListContext } from "./RustParser.js";
 import { TypeContext } from "./RustParser.js";
@@ -266,18 +266,6 @@ export class RustListener implements ParseTreeListener {
      */
     exitMulDivOp?: (ctx: MulDivOpContext) => void;
     /**
-     * Enter a parse tree produced by the `parenExpr`
-     * labeled alternative in `RustParser.expression`.
-     * @param ctx the parse tree
-     */
-    enterParenExpr?: (ctx: ParenExprContext) => void;
-    /**
-     * Exit a parse tree produced by the `parenExpr`
-     * labeled alternative in `RustParser.expression`.
-     * @param ctx the parse tree
-     */
-    exitParenExpr?: (ctx: ParenExprContext) => void;
-    /**
      * Enter a parse tree produced by the `int`
      * labeled alternative in `RustParser.expression`.
      * @param ctx the parse tree
@@ -289,6 +277,18 @@ export class RustListener implements ParseTreeListener {
      * @param ctx the parse tree
      */
     exitInt?: (ctx: IntContext) => void;
+    /**
+     * Enter a parse tree produced by the `parenExpr`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     */
+    enterParenExpr?: (ctx: ParenExprContext) => void;
+    /**
+     * Exit a parse tree produced by the `parenExpr`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     */
+    exitParenExpr?: (ctx: ParenExprContext) => void;
     /**
      * Enter a parse tree produced by the `addSubOp`
      * labeled alternative in `RustParser.expression`.

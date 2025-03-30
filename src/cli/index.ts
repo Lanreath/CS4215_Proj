@@ -15,7 +15,7 @@ const SHOW_VM_INSTRUCTIONS = true;
 
 // Buffer for multi-line input
 let codeBuffer: string[] = [];
-let inMultiLineMode = false;
+let inMultiLineMode = true; // Default to multi-line mode
 
 function debugLog(message: string): void {
     if (DEBUG) {
@@ -59,7 +59,7 @@ function evaluate(input: string): { result: number, error: string | null } {
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: inMultiLineMode ? '... ' : '> '
+    prompt: '... ' // Start with multi-line prompt
 });
 
 // Helper to get the current prompt
@@ -87,23 +87,41 @@ function handleCommand(cmd: string): boolean {
             console.log("  .help          - Show this help message");
             console.log("  .exit, .quit   - Exit the interpreter");
             console.log("  .clear         - Clear the screen");
-            console.log("  .multi         - Enter multi-line mode");
+            console.log("  .single        - Enter single-line mode");
+            console.log("  .multi         - Enter multi-line mode (default)");
             console.log("  .end           - End multi-line mode and execute code");
+            console.log("  Empty line     - End multi-line mode and execute code");
             return true;
             
         case 'multi':
             if (!inMultiLineMode) {
                 inMultiLineMode = true;
                 codeBuffer = [];
-                console.log("Entering multi-line mode. Type .end to execute.");
+                console.log("Entering multi-line mode. Type .end or an empty line to execute.");
                 rl.setPrompt('... ');
             }
             return true;
             
-        case 'end':
+        case 'single':
             if (inMultiLineMode) {
+                // Execute any pending code in buffer
+                if (codeBuffer.length > 0) {
+                    const code = codeBuffer.join('\n');
+                    codeBuffer = [];
+                    console.log("\nExecuting code...");
+                    if (code.trim() !== '') {
+                        executeCode(code);
+                    }
+                }
+                
                 inMultiLineMode = false;
+                console.log("Entering single-line mode. Each line will be executed immediately.");
                 rl.setPrompt('> ');
+            }
+            return true;
+            
+        case 'end':
+            if (inMultiLineMode && codeBuffer.length > 0) {
                 const code = codeBuffer.join('\n');
                 codeBuffer = [];
                 
@@ -130,7 +148,8 @@ function executeCode(code: string): void {
 
 // Print welcome message
 console.log("Rust Interpreter with Ownership and Borrowing");
-console.log("Type .help for commands or .multi to enter multi-line mode");
+console.log("MULTI-LINE MODE: Enter code and use an empty line or .end to execute");
+console.log("Type .help for commands or .single to enter single-line mode");
 console.log("Type .exit to quit\n");
 
 // Set initial prompt
@@ -151,8 +170,21 @@ rl.on('line', (line) => {
         return;
     }
     
-    // Skip empty lines when not in multi-line mode
-    if (input === '' && !inMultiLineMode) {
+    // In multi-line mode, empty line executes the buffer
+    if (input === '' && inMultiLineMode && codeBuffer.length > 0) {
+        const code = codeBuffer.join('\n');
+        codeBuffer = [];
+        
+        console.log("\nExecuting code...");
+        if (code.trim() !== '') {
+            executeCode(code);
+        }
+        rl.prompt();
+        return;
+    }
+    
+    // Skip other empty lines
+    if (input === '') {
         rl.prompt();
         return;
     }
@@ -160,7 +192,6 @@ rl.on('line', (line) => {
     // In multi-line mode, add to buffer
     if (inMultiLineMode) {
         codeBuffer.push(line);
-        rl.setPrompt('... ');
         rl.prompt();
         return;
     }

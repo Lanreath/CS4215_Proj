@@ -1,3 +1,5 @@
+import { TypeInfo, Type } from "./RustEvaluator";
+
 export enum InstructionTag {
     DONE = "DONE",
     LDCN = "LDCN",
@@ -20,6 +22,12 @@ export enum InstructionTag {
     FREE = "FREE",
     CALL = "CALL",
     RETURN = "RETURN",
+    STORE_WITH_TYPE = "STORE_WITH_TYPE", // Store with type checking
+    CHECK_TYPE = "CHECK_TYPE",           // Check type compatibility
+    PUSH_TYPE = "PUSH_TYPE",             // Push a type descriptor
+    RET = "RET",                         // Return from a function
+    STOREREF = "STOREREF",               // Store a value through a reference
+    NEG = "NEG",                   // Negate a value
 }
 export class Instruction {
     public tag: InstructionTag;
@@ -63,6 +71,10 @@ export class VirtualMachine {
     private rtPtr: number = 0; // Return stack pointer
     private rsPtr: number = 0; // Runtime stack pointer
 
+    private valueTypes: Map<number, TypeInfo> = new Map();
+
+    private returnStack: number[] = [];
+
     constructor(memSize: number = 4096) {
         // Ensure this is large enough
         this.memSize = memSize;
@@ -90,25 +102,50 @@ export class VirtualMachine {
         return value;
     }
 
-    private pushReturn(value: number): void {
-        const addr = VirtualMachine.RT_BASE + this.rtPtr * 4;
-        if (addr >= VirtualMachine.RS_BASE) {
-            throw new Error("Return stack overflow");
+    private peekOperand(): number {
+        if (this.osPtr <= 0) {
+            throw new Error("Operand stack underflow");
         }
-        this.view.setInt32(addr, value);
-        this.rtPtr++;
+        const addr = VirtualMachine.OS_BASE + (this.osPtr - 1) * 4;
+        return this.view.getInt32(addr);
+    }
+
+    private pushReturn(addr: number): void {
+        if (this.returnStack.length >= 100) {
+            throw new Error("Call stack overflow");
+        }
+        this.returnStack.push(addr);
+        console.log(`[VM] Pushed return address ${addr} to call stack`);
     }
 
     private popReturn(): number {
-        if (this.rtPtr <= 0) {
-            throw new Error("Return stack underflow");
+        if (this.returnStack.length === 0) {
+            throw new Error("Call stack underflow - trying to return without a call");
         }
-        this.rtPtr--;
-        const addr = VirtualMachine.RT_BASE + this.rtPtr * 4;
-        const value = this.view.getInt32(addr);
-        this.view.setInt32(addr, 0);
-        return value;
+        const addr = this.returnStack.pop();
+        console.log(`[VM] Popped return address ${addr} from call stack`);
+        return addr;
     }
+
+    // private pushReturn(value: number): void {
+    //     const addr = VirtualMachine.RT_BASE + this.rtPtr * 4;
+    //     if (addr >= VirtualMachine.RS_BASE) {
+    //         throw new Error("Return stack overflow");
+    //     }
+    //     this.view.setInt32(addr, value);
+    //     this.rtPtr++;
+    // }
+
+    // private popReturn(): number {
+    //     if (this.rtPtr <= 0) {
+    //         throw new Error("Return stack underflow");
+    //     }
+    //     this.rtPtr--;
+    //     const addr = VirtualMachine.RT_BASE + this.rtPtr * 4;
+    //     const value = this.view.getInt32(addr);
+    //     this.view.setInt32(addr, 0);
+    //     return value;
+    // }
 
     private load(addr: number): number {
         const heapAddr = VirtualMachine.RS_BASE + addr;
@@ -436,25 +473,30 @@ export class VirtualMachine {
                         if (instr.value === undefined) {
                             throw new Error("LOADADDR instruction missing address");
                         }
-                        console.log(
-                            `[VM] LOADADDR: Loading address ${instr.value} onto stack`
-                        );
+                        
+                        // Push the address itself onto the stack, not the value
                         this.pushOperand(instr.value);
+                        console.log(`[VM] LOADADDR: Pushed address ${instr.value} onto stack`);
                         break;
                     }
                     case InstructionTag.FETCH: {
+                        // Pop an address from the stack
                         const addr = this.popOperand();
+                        
+                        // Load the value at that address
                         const value = this.load(addr);
-                        console.log(`[VM] FETCH: Loaded value at ${addr}: ${value}`);
+                        
+                        // Push the value onto the stack
                         this.pushOperand(value);
+                        console.log(`[VM] FETCH: Loaded ${value} from address ${addr}`);
                         break;
                     }
                     case InstructionTag.FREE: {
-                        if (instr.value === undefined) {
-                            throw new Error("FREE instruction missing address");
+                        // Mark memory as available for reuse
+                        if (instr.value !== undefined) {
+                            console.log(`[VM] FREE: Releasing memory at address ${instr.value}`);
+                            // Add memory management code here
                         }
-                        console.log(`[VM] FREE: Freeing value at ${instr.value}`);
-                        this.free(instr.value);
                         break;
                     }
                     case InstructionTag.CALL: {
@@ -462,7 +504,8 @@ export class VirtualMachine {
                             throw new Error("CALL instruction missing address");
                         }
                         console.log(`[VM] CALL: Calling function at ${instr.value}`);
-                        this.pushReturn(this.pc);
+                        // Store the address of the next instruction to return to
+                        this.pushReturn(this.pc + 1); 
                         this.pc = instr.value;
                         break;
                     }
@@ -472,6 +515,104 @@ export class VirtualMachine {
                         this.pc = returnAddr;
                         break;
                     }
+                    case InstructionTag.STORE_WITH_TYPE: {
+                        if (instr.value === undefined) {
+                            throw new Error("STORE_WITH_TYPE instruction missing address");
+                        }
+                        
+                        // Get the value and expected type
+                        const value = this.popOperand();
+                        const expectedType = this.instructions.shift()?.value as unknown as TypeInfo;
+                        
+                        if (!expectedType) {
+                            throw new Error("STORE_WITH_TYPE missing type information");
+                        }
+                        
+                        // Determine the actual type of the value
+                        let actualType: TypeInfo;
+                        if (Number.isInteger(value)) {
+                            actualType = new TypeInfo(Type.I64);
+                        } else {
+                            // Default to i64 for other values
+                            actualType = new TypeInfo(Type.I64);
+                        }
+                        
+                        // Check type compatibility
+                        if (!this.checkTypeCompatibility(actualType, expectedType)) {
+                            throw new Error(`Type mismatch: expected ${expectedType.toString()}, got ${actualType.toString()}`);
+                        }
+                        
+                        // Store the value with its type
+                        this.storeValue(instr.value, value, expectedType);
+                        break;
+                    }
+                    
+                    case InstructionTag.CHECK_TYPE: {
+                        // Get the value and expected type
+                        const value = this.peekOperand(); // Peek, don't pop
+                        const expectedType = this.instructions.shift()?.value as unknown as TypeInfo;
+                        
+                        if (!expectedType) {
+                            throw new Error("CHECK_TYPE missing type information");
+                        }
+                        
+                        // Determine the actual type of the value
+                        let actualType: TypeInfo;
+                        if (Number.isInteger(value)) {
+                            actualType = new TypeInfo(Type.I64);
+                        } else {
+                            // Default to i64 for other values
+                            actualType = new TypeInfo(Type.I64);
+                        }
+                        
+                        // Check type compatibility
+                        if (!this.checkTypeCompatibility(actualType, expectedType)) {
+                            throw new Error(`Type mismatch: expected ${expectedType.toString()}, got ${actualType.toString()}`);
+                        }
+                        
+                        break;
+                    }
+                    
+                    case InstructionTag.PUSH_TYPE: {
+                        // This instruction just puts a type onto the instruction queue
+                        // It's handled by STORE_WITH_TYPE and CHECK_TYPE
+                        break;
+                    }
+                    case InstructionTag.STOREREF: {
+                        // Pop the value and the address from the stack
+                        const value = this.popOperand();
+                        const addr = this.popOperand();
+                        
+                        // Store the value at the address
+                        this.store(addr, value);
+                        console.log(`[VM] STOREREF: Stored ${value} at address ${addr}`);
+                        break;
+                    }
+
+                    case InstructionTag.NEG: {
+                        if (this.osPtr <= 0) {
+                            throw new Error("Not enough operands for negation");
+                        }
+                        
+                        const value = this.popOperand();
+                        const result = -value;
+                        console.log(`[VM] NEG: -${value} = ${result}`);
+                        this.pushOperand(result);
+                        break;
+                    }
+                    
+                    case InstructionTag.CHECK_TYPE: {
+                        // This instruction should have nothing because type check is trivial
+                        console.log(`[VM] CHECK_TYPE: Type check passed`);
+                        break;
+                    }
+                    
+                    case InstructionTag.PUSH_TYPE: {
+                        // This instruction should have nothing because type check is trivial
+                        console.log(`[VM] PUSH_TYPE: Type ${instr.value} recorded`);
+                        break;
+                    }
+                    
                     default:
                         console.warn(`Unknown instruction: ${instr.tag}`);
                 }
@@ -503,5 +644,60 @@ export class VirtualMachine {
         // Clear memory
         this.memory = new ArrayBuffer(this.memSize);
         this.view = new DataView(this.memory);
+        this.returnStack = [];
+        console.log("[VM] VM state reset");
+    }
+
+    // Store type information when storing a value
+    public storeValue(addr: number, value: number, typeInfo: TypeInfo): void {
+        // Check if addr is valid
+        if (addr < 0 || addr + 8 > this.memSize) {
+            throw new Error(`Invalid memory address for write: ${addr}`);
+        }
+        
+        // Store the value in memory
+        this.view.setFloat64(addr, value, true);
+        
+        // Store the type information
+        this.valueTypes.set(addr, typeInfo);
+        
+        console.log(`[VM] Stored ${value} (type: ${typeInfo.toString()}) at address ${addr}`);
+    }
+
+    // Get type information when loading a value
+    public getValueType(addr: number): TypeInfo {
+        return this.valueTypes.get(addr) || new TypeInfo(Type.ERORR);
+    }
+
+    private checkTypeCompatibility(actual: TypeInfo, expected: TypeInfo): boolean {
+        // Basic case: exact type match
+        if (actual.baseType === expected.baseType) {
+            return true;
+        }
+        
+        // Reference compatibility rules
+        if ((actual.baseType === Type.REF || actual.baseType === Type.REF_MUT) &&
+            (expected.baseType === Type.REF || expected.baseType === Type.REF_MUT)) {
+            
+            // Immutable references can be passed to immutable reference parameters
+            if (actual.baseType === Type.REF && expected.baseType === Type.REF) {
+                return true;
+            }
+            
+            // Mutable references can be passed to immutable reference parameters
+            if (actual.baseType === Type.REF_MUT && expected.baseType === Type.REF) {
+                return true;
+            }
+            
+            // Mutable references can only be passed to mutable reference parameters
+            if (actual.baseType === Type.REF_MUT && expected.baseType === Type.REF_MUT) {
+                return true;
+            }
+            
+            // Immutable references cannot be passed to mutable reference parameters
+            return false;
+        }
+        
+        return false;
     }
 }

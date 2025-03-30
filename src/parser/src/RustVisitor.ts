@@ -24,8 +24,8 @@ import { EqualityOpContext } from "./RustParser.js";
 import { FunctionCallContext } from "./RustParser.js";
 import { UnaryOpContext } from "./RustParser.js";
 import { MulDivOpContext } from "./RustParser.js";
-import { ParenExprContext } from "./RustParser.js";
 import { IntContext } from "./RustParser.js";
+import { ParenExprContext } from "./RustParser.js";
 import { AddSubOpContext } from "./RustParser.js";
 import { ArgListContext } from "./RustParser.js";
 import { TypeContext } from "./RustParser.js";
@@ -176,19 +176,19 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitMulDivOp?: (ctx: MulDivOpContext) => Result;
     /**
-     * Visit a parse tree produced by the `parenExpr`
-     * labeled alternative in `RustParser.expression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitParenExpr?: (ctx: ParenExprContext) => Result;
-    /**
      * Visit a parse tree produced by the `int`
      * labeled alternative in `RustParser.expression`.
      * @param ctx the parse tree
      * @return the visitor result
      */
     visitInt?: (ctx: IntContext) => Result;
+    /**
+     * Visit a parse tree produced by the `parenExpr`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitParenExpr?: (ctx: ParenExprContext) => Result;
     /**
      * Visit a parse tree produced by the `addSubOp`
      * labeled alternative in `RustParser.expression`.

@@ -10,11 +10,12 @@ import { RustLexer } from "./parser/src/RustLexer";
 import { RustVisitor } from "./parser/src/RustVisitor";
 import { InstructionTag, VirtualMachine } from "./VirtualMachine";
 
-enum Type {
+export enum Type {
     I64 = "i64",
     REF = "ref",
     REF_MUT = "ref_mut",
     VOID = "void",
+    ERORR = "error",
 }
 
 // Enhanced borrow states
@@ -30,13 +31,51 @@ class VariableState {
     state: BorrowState;
     mutable: boolean;
     address: number;
-    type: Type = Type.I64; // Default type
+    typeInfo: TypeInfo; // Type information for the variable
+    //type: Type = Type.I64; // Default type
     borrowers: string[] = []; // Track which variables are borrowing this one
 
-    constructor(mutable: boolean, address: number) {
+    constructor(mutable: boolean, address: number, typeInfo: TypeInfo ) {
         this.state = BorrowState.Owned;
         this.mutable = mutable;
         this.address = address;
+        this.typeInfo = typeInfo;
+    }
+}
+
+// Runtime type information
+export class TypeInfo {
+    baseType: Type;
+    refTarget?: string;  // For references, the name of the target variable
+    
+    constructor(baseType: Type, refTarget?: string) {
+        this.baseType = baseType;
+        this.refTarget = refTarget;
+    }
+    
+    static fromTypeContext(ctx: rp.TypeContext): TypeInfo {
+        const isRef = ctx._refFlag ? true : false;
+        const isMutable = isRef && ctx._mutFlag ? true : false;
+        
+        if (isRef) {
+            return new TypeInfo(isMutable ? Type.REF_MUT : Type.REF);
+        } else {
+            // Extract basic type from context
+            const typeName = ctx.getText();
+            if (typeName === "i64") {
+                return new TypeInfo(Type.I64);
+            } else {
+                throw new Error(`Unsupported type: ${typeName}`);
+            }
+        }
+    }
+    
+    toString(): string {
+        if (this.baseType === Type.REF || this.baseType === Type.REF_MUT) {
+            const mutPrefix = this.baseType === Type.REF_MUT ? "mut " : "";
+            return `&${mutPrefix}${this.refTarget || "unknown"}`;
+        }
+        return this.baseType;
     }
 }
 
@@ -77,6 +116,10 @@ export class RustEvaluatorVisitor
     implements RustVisitor<number> {
     private vm: VirtualMachine;
     private variableStates: Map<string, VariableState>;
+
+    public getVariableStates(): Map<string, VariableState> {
+        return this.variableStates;
+    }
     private referenceMap: Map<string, string>; // Maps reference names to their target
     private functionDefinitions: Map<string, FunctionDefinition> = new Map();
     private lastCreatedReference: string | undefined; // Store the last created reference
@@ -143,18 +186,24 @@ export class RustEvaluatorVisitor
     }
 
     // Declare a variable in the current scope
-    private declareVariable(name: string, mutable: boolean): void {
+    private declareVariable(name: string, mutable: boolean, typeInfo: TypeInfo = new TypeInfo(Type.I64), initialValue: number = 0): void {
         // Register in current scope
         const currentScope = this.scopes[this.scopes.length - 1];
         currentScope.set(name, true);
 
         // Create variable state
         const addr = this.vm.allocateVariable();
-        const state = new VariableState(mutable, addr);
+        const state = new VariableState(mutable, addr, typeInfo);
         this.variableStates.set(name, state);
+        
+        // Push the initial value to the stack
+        this.vm.pushInstruction(InstructionTag.LDCN, initialValue);
+        
+        // Then store it
         this.vm.pushInstruction(InstructionTag.STORE, addr);
+        
         console.log(
-            `[DEBUG] Declared variable: ${name}, mutable: ${mutable}, addr: ${addr}`
+            `[DEBUG] Declared variable: ${name}, mutable: ${mutable}, addr: ${addr}, type: ${typeInfo.toString()}`
         );
     }
 
@@ -179,7 +228,7 @@ export class RustEvaluatorVisitor
         }
 
         // Move ownership
-        const newState = new VariableState(isMutable, sourceState.address);
+        const newState = new VariableState(isMutable, sourceState.address, sourceState.typeInfo);
         this.variableStates.set(destVar, newState);
 
         // Mark source as moved
@@ -347,7 +396,7 @@ export class RustEvaluatorVisitor
             const varName = expr.getText();
             const state = this.lookupVariable(varName);
             if (state) {
-                return state.type;
+                return state.typeInfo.baseType;
             } else {
                 throw new Error(`Undefined variable: ${varName}`);
             }
@@ -419,7 +468,8 @@ export class RustEvaluatorVisitor
 
         // Reset reference tracking
         this.lastCreatedReference = null;
-
+        this.loopEndLabels = [];
+        
         console.log("[EVALUATOR] State reset complete");
     }
 
@@ -435,71 +485,56 @@ export class RustEvaluatorVisitor
             this.visit(statement);
         }
 
+        let finalExpression = null;
+        // Check if the last child is an expression node
+        if (ctx.getChildCount() > 0 && ctx.getChild(ctx.getChildCount() - 1) instanceof rp.ExpressionContext) {
+            finalExpression = ctx.getChild(ctx.getChildCount() - 1) as rp.ExpressionContext;
+        } else if (ctx.getChildCount() > 0) {
+            const lastChild = ctx.getChild(ctx.getChildCount() - 1);
+            if (lastChild instanceof rp.ExpressionContext) {
+                finalExpression = lastChild;
+            }
+        }
+        
+        if (finalExpression) {
+            console.log(`[COMPILE] Final expression found`);
+            this.visit(finalExpression);
+        }
+        
         return 0;
     }
 
-    // Visit a parse tree produced by RustParser#variableDeclaration
+    // Variable declaration with dynamic type checking
     visitVariableDeclaration(ctx: rp.VariableDeclarationContext): number {
+        if (!ctx._name || !ctx._value) {
+            throw new Error("Invalid variable declaration");
+        }
+        
         const name = ctx._name.text;
         const isMutable = ctx._mutFlag ? true : false;
-
-        console.log(`Declaring variable: ${name}, mutable: ${isMutable}`);
-
-        // Check if this is a reference type
-        const isRefType = ctx.type()._refFlag ? true : false;
-        const isRefExpr = ctx._value instanceof rp.ReferenceExprContext;
-
-        // Generate VM instructions for the initializer expression
-
-        if (isRefExpr && isRefType) {
-            this.visit(ctx._value);
-            const refName = this.lastCreatedReference;
-            if (!refName) {
-                throw new BorrowError(`Failed to create reference for ${name}`);
-            }
-
-            // Copy the reference mapping to the new variable name
-            const targetVar = this.referenceMap.get(refName);
-            if (targetVar) {
-                console.log(`Creating reference alias: ${name} -> ${targetVar}`);
-
-                // Register the new reference name in the current scope
-                const currentScope = this.scopes[this.scopes.length - 1];
-                currentScope.set(name, true);
-
-                // Add it to the reference map
-                this.referenceMap.set(name, targetVar);
-
-                // Get the target's state
-                const targetState = this.lookupVariable(targetVar);
-                if (targetState) {
-                    // Update borrowers list
-                    targetState.borrowers.push(name);
-
-                    // Create a state for the new reference variable
-                    const refState = new VariableState(false, targetState.address);
-                    this.variableStates.set(name, refState);
-                }
-
-                // Clear the lastCreatedReference after use
-                this.lastCreatedReference = null;
-            } else {
-                throw new BorrowError(`Invalid reference creation`);
-            }
-        } else if (ctx._value instanceof rp.IdentifierContext) {
-            // Handle ownership transfer if the value is a variable
-            const sourceVar = ctx._value.getText();
-
-            // Only move if it's not a reference
-            if (!this.referenceMap.has(sourceVar)) {
-                this.moveVariable(sourceVar, name, isMutable);
-            }
+        
+        console.log(`[COMPILE] Declaring variable: ${name}, mutable: ${isMutable}`);
+        
+        // Extract the type
+        let typeInfo: TypeInfo;
+        if (ctx.type()) {
+            typeInfo = TypeInfo.fromTypeContext(ctx.type());
         } else {
-            // Ensure value is on stack
-            this.visit(ctx._value);
-            this.declareVariable(name, isMutable);
+            typeInfo = new TypeInfo(Type.I64); // Default type
         }
-
+        
+        // Create the variable state
+        const addr = this.vm.allocateVariable();
+        const state = new VariableState(isMutable, addr, typeInfo);
+        this.variableStates.set(name, state);
+        this.currentScope().set(name, true);
+        
+        // Evaluate the expression, which puts its value on the stack
+        this.visit(ctx._value);
+        
+        // Store the value to the variable
+        this.vm.pushInstruction(InstructionTag.STORE, addr);
+        
         return 0;
     }
 
@@ -520,13 +555,9 @@ export class RustEvaluatorVisitor
         const value = this.visit(ctx.expression());
         const type = this.getExpressionType(ctx.expression());
 
-        // Check expression type
-        if (ctx.expression() instanceof rp.ReferenceExprContext) {
-            throw new BorrowError("Cannot assign a reference directly");
-        }
-        if (type !== targetState.type) {
+        if (type !== targetState.typeInfo.baseType) {
             throw new Error(
-                `Type mismatch: cannot assign ${type} to ${targetState.type}`
+                `Type mismatch: cannot assign ${type} to ${targetState.typeInfo.baseType}`
             );
         }
 
@@ -572,10 +603,32 @@ export class RustEvaluatorVisitor
             this.borrowImmutably(targetVar, refName);
         }
 
+        // Create variable state with proper type info for the reference
+        const targetState = this.lookupVariable(targetVar);
+        if (targetState) {
+            // Create a reference type that points to the target var
+            const refTypeInfo = new TypeInfo(
+                isMutable ? Type.REF_MUT : Type.REF,
+                targetVar
+            );
+            
+            // Create a variable state for the reference
+            const addr = this.vm.allocateVariable();
+            const refState = new VariableState(false, addr, refTypeInfo);
+            this.variableStates.set(refName, refState);
+            
+            // Register in current scope
+            this.currentScope().set(refName, true);
+            
+            // Store the value (address) of the target in the reference
+            this.vm.pushInstruction(InstructionTag.LDCN, targetState.address);
+            this.vm.pushInstruction(InstructionTag.STORE, addr);
+        }
+
         // Store the reference name in a property so we can access it in variableDeclaration
         this.lastCreatedReference = refName;
 
-        return 0; // Return a number per the visitor contract
+        return 0;
     }
 
     // Visit a parse tree produced by RustParser#dereferenceExpr
@@ -664,16 +717,13 @@ export class RustEvaluatorVisitor
             throw new BorrowError(`Target of reference ${refName} no longer exists`);
         }
 
-        // Check value expression
-        if (ctx._value instanceof rp.ReferenceExprContext) {
-            throw new BorrowError("Cannot assign a reference directly");
-        }
-
         // Evaluate the value expression
-        const value = this.visit(ctx._value);
+        this.visit(ctx._value);
+
+        // Push instruction to store the new value at the target's address
         this.vm.pushInstruction(InstructionTag.STORE, targetState.address);
 
-        return value;
+        return 0;
     }
 
     // Visit a parse tree produced by RustParser#block
@@ -731,229 +781,67 @@ export class RustEvaluatorVisitor
         if (ctx.expression()) {
             this.visit(ctx.expression());
             returnType = this.getExpressionType(ctx.expression());
+            
+            // Check if the return type matches
+            if (returnType !== this.currentFunctionReturnType) {
+                throw new Error(
+                    `Function return type mismatch: expected ${this.currentFunctionReturnType}, got ${returnType}`
+                );
+            }
+        } else {
+            // For void returns, push a dummy value
+            this.vm.pushInstruction(InstructionTag.LDCN, 0);
         }
 
-        // Check if the return type matches
-        if (returnType !== this.currentFunctionReturnType) {
-            throw new Error(
-                `Function return type mismatch: expected ${this.currentFunctionReturnType}, got ${returnType}`
-            );
-        }
-
-        // Set the return flags
+        // Return to the caller
         this.vm.pushInstruction(InstructionTag.RETURN);
         this.isReturning = true;
 
         return 0;
     }
 
-    // Visit a parse tree produced by RustParser#functionCall
+    // Function call with dynamic type checking
     visitFunctionCall(ctx: rp.FunctionCallContext): number {
+        if (!ctx.IDENTIFIER() || !ctx.IDENTIFIER().getText()) {
+            throw new Error("Invalid function call");
+        }
+        
         const funcName = ctx.IDENTIFIER().getText();
         console.log(`[COMPILE] Calling function: ${funcName}`);
-
+        
         // Get the function definition
         const funcDef = this.functionDefinitions.get(funcName);
         if (!funcDef) {
             throw new Error(`Undefined function: ${funcName}`);
         }
-
-        const params = funcDef.paramList.param() || [];
+        
+        // Process arguments
+        const params = funcDef.paramList?.param() || [];
         const args = ctx.argList()?.expression() || [];
-
+        
         if (params.length !== args.length) {
-            throw new Error(
-                `Function ${funcName} expects ${params.length} arguments but got ${args.length}`
-            );
+            throw new Error(`Function ${funcName} expects ${params.length} arguments but got ${args.length}`);
         }
-
-        try {
-            // Process each argument in reverse order for stack
-            for ( let i = params.length - 1; i >= 0; i--) {
-                // Evaluate the argument expression
-                const argExpr = args[i];
-                const paramName = params[i]._name?.text;
-                const paramType = funcDef.paramTypes.get(paramName);
-                this.processArgument(argExpr, paramName, paramType);
-            }
-        } finally {
-            // Always exit the function scope
-            // Push the function call instruction
-            this.vm.pushInstruction(InstructionTag.CALL, funcDef.label+1);
-        }
-        return 0;
-    }
-
-    // Helper method to process function arguments
-    private processArgument(
-        argExpr: rp.ExpressionContext,
-        paramName: string,
-        paramType: Type
-    ): void {
-        // Argument is a reference
-        if (argExpr instanceof rp.ReferenceExprContext) {
-            // Extract target variable name
-            const isMutableRef = argExpr._mutFlag ? true : false;
-            const targetExpr = argExpr._target;
-
-            // Get target variable name
-            let targetVar: string;
-            if (targetExpr instanceof rp.IdentifierContext) {
-                targetVar = targetExpr.getText();
-            } else {
-                throw new Error(
-                    `Invalid reference target for parameter ${paramName}`
-                );
-            }
+        
+        // Push arguments onto the stack in the correct order for the function
+        // For a function add(x, y), x should be at params[0], y at params[1]
+        for (let i = 0; i < args.length; i++) {
+            // Evaluate the argument and push it onto the stack
+            this.visit(args[i]);
             
-            // TODO: Type checking for the reference
-
-            // Create the borrow
-            if (isMutableRef) {
-                this.borrowMutably(targetVar, paramName);
-            } else {
-                this.borrowImmutably(targetVar, paramName);
-            }
-
-            // Set up the argument as a reference
-            const targetState = this.lookupVariable(targetVar);
-            if (targetState) {
-                // Add to reference map
-                this.referenceMap.set(paramName, targetVar);
-                this.vm.pushInstruction(InstructionTag.LOADADDR, targetState.address);
-            } else {
-                throw new Error(
-                    `Target variable ${targetVar} for reference ${paramName} does not exist`
-                );
-            }
-        } else if (argExpr instanceof rp.DereferenceAssignmentContext) {
-            // Check if the argument is a variable
-            const refName = argExpr._target.getText();
-            const targetVar = this.referenceMap.get(refName);
-            if (!targetVar) {
-                throw new Error(`Dereference target ${refName} does not exist`);
-            }
-
-            const targetState = this.lookupVariable(targetVar);
-            if (!targetState) {
-                throw new Error(`Target variable ${targetVar} does not exist`);
-            }
+            // Type checking can be done at compile time
+            const argType = this.getExpressionType(args[i]);
+            const paramType = TypeInfo.fromTypeContext(params[i].type()).baseType;
             
-            // TODO: Type checking for the dereference
-
-            this.vm.pushInstruction(InstructionTag.LOAD, targetState.address);
-        } else {
-            // Value parameter - takes ownership
-            this.visit(argExpr);
-
-            // Handle ownership transfer for variables
-            if (argExpr instanceof rp.IdentifierContext) {
-                // TODO: Type checking for the variable
-                const sourceVar = argExpr.getText();
-                if (!this.referenceMap.has(sourceVar)) {
-                    this.moveVariable(sourceVar, paramName, false);
-                }
-                const state = this.lookupVariable(paramName);
-                if (!state) {
-                    throw new Error(`Failed to move variable ${sourceVar}`);
-                }
-                // Push the value to the stack
-                this.vm.pushInstruction(InstructionTag.LOAD, state.address);
-            } else {
-                // Value should already be on the stack
-                const type = this.getExpressionType(argExpr);
-                if (type !== paramType) {
-                    throw new Error(
-                        `Type mismatch for parameter ${paramName}: expected ${paramType}, got ${type}`
-                    );
-                }
+            // Verify type compatibility
+            if (argType !== paramType) {
+                throw new Error(`Type mismatch in function call: Parameter ${params[i]._name?.text} expects ${paramType} but got ${argType}`);
             }
         }
-    }
-
-    // Override the default result method from AbstractParseTreeVisitor
-    protected defaultResult(): number {
-        return 0;
-    }
-
-    // Override the aggregate result method
-    protected aggregateResult(aggregate: number, nextResult: number): number {
-        return nextResult;
-    }
-
-    // Methods push values onto the VM stack
-    visitInt(ctx: rp.IntContext): number {
-        const value = parseInt(ctx.INT().getText());
-        console.log(`[COMPILE] Loading constant: ${value}`);
-        this.vm.pushInstruction(InstructionTag.LDCN, value);
-        return 0; // Return value doesn't matter during compilation
-    }
-
-    // Variable access
-    visitIdentifier(ctx: rp.IdentifierContext): number {
-        const name = ctx.IDENTIFIER().getText();
-        console.log(`[COMPILE] Loading variable: ${name}`);
-
-        // Check if variable exists
-        const state = this.lookupVariable(name);
-        if (!state) {
-            throw new Error(`Variable ${name} is not defined`);
-        }
-
-        // Check read access
-        this.checkReadAccess(name);
-
-        // Load variable value from memory address
-        this.vm.pushInstruction(InstructionTag.LOAD, state.address);
-
-        return 0;
-    }
-
-    // Parenthesized expression
-    visitParenExpr(ctx: rp.ParenExprContext): number {
-        // Just visit the inner expression
-        return this.visit(ctx.expression());
-    }
-
-    // Visit a parse tree produced by RustParser#mulDivOp
-    visitMulDivOp(ctx: rp.MulDivOpContext): number {
-        // Get the left and right operands
-        this.visit(ctx._left);
-        this.visit(ctx._right);
-
-        const op = ctx._op.text;
-        console.log(`[COMPILE] Arithmetic operation: ${op}`);
-
-        // Push the appropriate instruction
-        if (op === "*") {
-            this.vm.pushInstruction(InstructionTag.TIMES);
-        } else if (op === "/") {
-            this.vm.pushInstruction(InstructionTag.DIVIDE);
-        } else {
-            throw new Error(`Unknown operator: ${op}`);
-        }
-
-        return 0;
-    }
-
-    // Visit a parse tree produced by RustParser#addSubOp
-    visitAddSubOp(ctx: rp.AddSubOpContext): number {
-        // Evaluate left and right operands
-        this.visit(ctx._left);
-        this.visit(ctx._right);
-
-        const op = ctx._op.text;
-        console.log(`[COMPILE] Arithmetic operation: ${op}`);
-
-        // Push the appropriate instruction
-        if (op === "+") {
-            this.vm.pushInstruction(InstructionTag.PLUS);
-        } else if (op === "-") {
-            this.vm.pushInstruction(InstructionTag.MINUS);
-        } else {
-            throw new Error(`Unknown operator: ${op}`);
-        }
-
+        
+        // Generate the function call instruction
+        this.vm.pushInstruction(InstructionTag.CALL, funcDef.label);
+        
         return 0;
     }
 
@@ -962,12 +850,8 @@ export class RustEvaluatorVisitor
         if (!ctx._name || !ctx._name.text) {
             throw new Error("Function declaration must have a name");
         }
-        if (this.currentFunctionReturnType !== null) {
-            throw new Error("Functions can only be declared at the top level");
-        }
-
+        
         const funcName = ctx._name.text;
-        const label = this.vm.getInstructionCounter();
         const params = ctx.paramList();
         let returnType: Type;
 
@@ -980,15 +864,30 @@ export class RustEvaluatorVisitor
         }
 
         console.log(`Defining function: ${funcName}`);
-        const fnDef = new FunctionDefinition(label, params, returnType);
+        
+        // Generate a label for the function's end
         const endOfFnLabel = `end_${funcName}`;
+        
+        // Store the current instruction counter as the function's entry point
+        const entryPoint = this.vm.getInstructionCounter() + 1; // +1 to skip over the initial GOTO
+        
+        // Add function to registry with its entry point
+        const fnDef = new FunctionDefinition(entryPoint, params, returnType);
         this.functionDefinitions.set(funcName, fnDef);
+        
+        // Add GOTO to skip over the function body during normal execution
+        this.vm.pushGoto(endOfFnLabel);
+        
+        // Save the function return type
         this.currentFunctionReturnType = fnDef.declaredReturnType;
         this.isReturning = false;
-        this.vm.pushGoto(endOfFnLabel);
-
-
-        if (params) {
+        
+        // Enter a scope for the function
+        this.enterScope();
+        
+                if (params) {
+// Create parameter variables in order
+            let paramIndex = 0;
             for (const param of params.param()) {
                 const paramName = param._name?.text;
                 const paramType = param.type();
@@ -996,52 +895,58 @@ export class RustEvaluatorVisitor
                     throw new Error("Invalid parameter definition");
                 }
 
-                const type = this.processParameter(paramName, paramType);
+                // Register parameter variables in the correct order
+                const type = this.processParameter(paramName, paramType, paramIndex);
                 fnDef.paramTypes.set(paramName, type);
+                paramIndex++;
             }
         }
 
         // Visit the function body
         this.visit(ctx._functionBody);
 
-        // Check if the function has a return statement
+        // Ensure all paths have a return for non-void functions
         if (!this.isReturning && this.currentFunctionReturnType !== Type.VOID) {
-            throw new Error(
-                `Function ${funcName} does not return.`
-            );
+            throw new Error(`Function ${funcName} must return a value of type ${this.currentFunctionReturnType}`);
+        }
+        
+        // Add a default return for void functions or as a safety
+        if (!this.isReturning) {
+            this.vm.pushInstruction(InstructionTag.LDCN, 0); // Default return value
+            this.vm.pushInstruction(InstructionTag.RETURN);
         }
 
+        // Clean up the function's scope
         this.exitScope();
 
-        // Reset return state
-        this.currentFunctionReturnType = null;
-        this.isReturning = false;
+        // Add the end label for the function
         this.vm.addLabel(endOfFnLabel);
 
-        // Functions don't produce a value at declaration time
+        // Reset state for the next declarations
+        this.currentFunctionReturnType = null;
+        this.isReturning = false;
+
         return 0;
     }
 
+    // Process parameters with runtime type checking
     private processParameter(
         paramName: string,
         paramType: rp.TypeContext,
+        paramIndex: number
     ): Type {
-        // Check if this is a reference parameter
-        const isRef = paramType._refFlag ? true : false;
-        const isMutableRef = isRef && paramType._mutFlag ? true : false;
-
-        if (isMutableRef || isRef) {
-            // Create a variable state for the parameter
-            this.declareVariable(paramName, isMutableRef);
-            // Create a reference mapping
-            this.referenceMap.set(paramName, paramName); // Placeholder for actual reference
-            const state = this.lookupVariable(paramName);
-            state.borrowers.push(paramName);
-        } else {
-            // Create the parameter as a normal variable
-            this.declareVariable(paramName, false);
-        }
-        return isMutableRef ? Type.REF_MUT : isRef ? Type.REF : Type.I64;
+        // Extract TypeInfo from the parameter type context
+        const typeInfo = TypeInfo.fromTypeContext(paramType);
+        
+        // Allocate memory for the parameter (x is 1024, y is 1028)
+        const addr = 1024 + (paramIndex * 4); // Using fixed addresses for params
+        
+        // Create a variable state with the proper type info
+        const varState = new VariableState(false, addr, typeInfo);
+        this.variableStates.set(paramName, varState);
+        this.currentScope().set(paramName, true);
+        
+        return typeInfo.baseType;
     }
 
     // Visit a parse tree produced by RustParser#ifStatement
@@ -1127,8 +1032,8 @@ export class RustEvaluatorVisitor
     // Visit a parse tree produced by RustParser#equalityOp
     visitEqualityOp(ctx: rp.EqualityOpContext): number {
         // Evaluate the left and right expressions
-        this.visit(ctx._left);
-        this.visit(ctx._right);
+        this.visit(ctx.expression(0));
+        this.visit(ctx.expression(1));
 
         const op = ctx._op.text;
         console.log(`[COMPILE] Comparison operation: ${op}`);
@@ -1175,6 +1080,86 @@ export class RustEvaluatorVisitor
     private currentScope(): Map<string, any> {
         return this.scopes[this.scopes.length - 1];
     }
+
+    // Visit a parse tree produced by RustParser#int
+    visitInt(ctx: rp.IntContext): number {
+        const value = parseInt(ctx.INT().getText());
+        console.log(`[COMPILE] Loading constant: ${value}`);
+        this.vm.pushInstruction(InstructionTag.LDCN, value);
+        return 0;
+    }
+
+    // Visit identifiers (variables)
+    visitIdentifier(ctx: rp.IdentifierContext): number {
+        const name = ctx.IDENTIFIER().getText();
+        const state = this.lookupVariable(name);
+        
+        if (!state) {
+            throw new Error(`Variable ${name} is not defined`);
+        }
+        
+        this.checkReadAccess(name);
+        
+        // Load the variable value onto the stack
+        this.vm.pushInstruction(InstructionTag.LOAD, state.address);
+        
+        return 0;
+    }
+
+    visitAddSubOp(ctx: rp.AddSubOpContext): number {
+        // First visit the left operand
+        this.visit(ctx.expression(0));
+        
+        // Then visit the right operand
+        this.visit(ctx.expression(1));
+        
+        // Generate the operation instruction
+        const op = ctx._op.text;
+        if (op === '+') {
+            this.vm.pushInstruction(InstructionTag.PLUS);
+        } else {
+            this.vm.pushInstruction(InstructionTag.MINUS);
+        }
+        
+        return 0;
+    }
+
+    visitMulDivOp(ctx: rp.MulDivOpContext): number {
+        // First visit the left operand
+        this.visit(ctx.expression(0));
+        
+        // Then visit the right operand
+        this.visit(ctx.expression(1));
+        
+        // Generate the operation instruction
+        const op = ctx._op.text;
+        if (op === '*') {
+            this.vm.pushInstruction(InstructionTag.TIMES);
+        } else {
+            this.vm.pushInstruction(InstructionTag.DIVIDE);
+        }
+        
+        return 0;
+    }
+
+    // Visit a parse tree produced by RustParser#unaryOp
+    visitUnaryOp(ctx: rp.UnaryOpContext): number {
+        // First, evaluate the expression being negated
+        this.visit(ctx.expression());
+        
+        // Get the operator (should be '-')
+        const op = ctx.getChild(0).getText();
+        
+        if (op === '-') {
+            // Generate negate instruction
+            this.vm.pushInstruction(InstructionTag.NEG);
+            console.log(`[COMPILE] Unary negation`);
+        } else {
+            throw new Error(`Unsupported unary operator: ${op}`);
+        }
+        
+        return 0;
+    }
 }
 
 export class RustEvaluator extends BasicEvaluator {
@@ -1187,13 +1172,13 @@ export class RustEvaluator extends BasicEvaluator {
         this.visitor = new RustEvaluatorVisitor();
     }
 
-    async evaluateChunk(chunk: string): Promise<void> {
+        async evaluateChunk(chunk: string): Promise<void> {
         this.executionCount++;
         try {
             // Reset the visitor for each new chunk
             const vm = new VirtualMachine();
             this.visitor = new RustEvaluatorVisitor(vm);
-
+            this.visitor.reset();
             // Create the lexer and parser
             const inputStream = CharStream.fromString(chunk);
             const lexer = new RustLexer(inputStream);
@@ -1208,6 +1193,20 @@ export class RustEvaluator extends BasicEvaluator {
 
             // Mark the end of the program
             vm.pushInstruction(InstructionTag.DONE);
+
+            // Check for a final standalone variable reference
+            const lines = chunk.split('\n');
+            const lastLine = lines[lines.length - 1].trim();
+            const varMatch = lastLine.match(/^([a-zA-Z_][a-zA-Z0-9_]*);?\s*(\/\/.*)?$/);
+            if (varMatch) {
+                const varName = varMatch[1];
+                console.log(`[EVALUATOR] Final expression is variable: ${varName}`);
+                const varState = this.visitor.getVariableStates().get(varName);
+                if (varState) {
+                    // Manually add instruction to load this variable
+                    vm.pushInstruction(InstructionTag.LOAD, varState.address);
+                }
+            }
 
             // EXECUTION PHASE: Run the VM code
             console.log(`[EVALUATOR] Running compiled code...`);

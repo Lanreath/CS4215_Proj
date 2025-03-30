@@ -60,18 +60,19 @@ expressionStatement
     : expression ';'
     ;
 
-// Order of operations
+// Expression precedence levels
 expression
-    : '(' expression ')'                               # parenExpr
+    : INT                     # int
+    | IDENTIFIER              # identifier
+    | '(' expression ')'      # parenExpr
+    | '-' expression          # unaryOp
+    | expression op=('*'|'/') expression # mulDivOp
+    | expression op=('+'|'-') expression # addSubOp
+    | expression op=('<'|'<='|'>'|'>=') expression # equalityOp
+    | expression op=('=='|'!=') expression # equalityOp
+    | IDENTIFIER '(' argList? ')'                      # functionCall   
     | '&' mutFlag='mut'? target=expression             # referenceExpr
     | '*' target=expression                            # dereferenceExpr
-    | left=expression op=('>'|'>='|'<'|'<='|'=='|'!=') right=expression  # equalityOp
-    | left=expression op=('*'|'/') right=expression    # mulDivOp
-    | left=expression op=('+'|'-') right=expression    # addSubOp
-    | '-' operand=expression                           # unaryOp
-    | IDENTIFIER '(' argList? ')'                      # functionCall   
-    | IDENTIFIER                                       # identifier
-    | INT                                              # int
     ;
 
 argList
