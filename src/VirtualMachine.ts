@@ -311,16 +311,14 @@ export class VirtualMachine {
                         }
                         break;
                     case InstructionTag.PLUS: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a + b;
                         console.log(`[VM] PLUS: ${a} + ${b} = ${result}`);
                         this.pushOperand(result);
                         break;
                     }
                     case InstructionTag.MINUS: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a - b;
                         console.log(`[VM] MINUS: ${a} - ${b} = ${result}`);
                         this.pushOperand(result);
@@ -328,16 +326,14 @@ export class VirtualMachine {
                     }
 
                     case InstructionTag.TIMES: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a * b;
                         console.log(`[VM] TIMES: ${a} * ${b} = ${result}`);
                         this.pushOperand(result);
                         break;
                     }
                     case InstructionTag.DIVIDE: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
 
                         if (b === 0) {
                             throw new Error("Division by zero");
@@ -350,48 +346,42 @@ export class VirtualMachine {
                         break;
                     }
                     case InstructionTag.LT: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a < b ? 1 : 0;
                         console.log(`[VM] LT: ${a} < ${b} = ${result}`);
                         this.pushOperand(result);
                         break;
                     }
                     case InstructionTag.LE: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a <= b ? 1 : 0;
                         console.log(`[VM] LE: ${a} <= ${b} = ${result}`);
                         this.pushOperand(result);
                         break;
                     }
                     case InstructionTag.GT: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a > b ? 1 : 0;
                         console.log(`[VM] GT: ${a} > ${b} = ${result}`);
                         this.pushOperand(result);
                         break;
                     }
                     case InstructionTag.GE: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a >= b ? 1 : 0;
                         console.log(`[VM] GE: ${a} >= ${b} = ${result}`);
                         this.pushOperand(result);
                         break;
                     }
                     case InstructionTag.EQ: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a === b ? 1 : 0;
                         console.log(`[VM] EQ: ${a} == ${b} = ${result}`);
                         this.pushOperand(result);
                         break;
                     }
                     case InstructionTag.NE: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a !== b ? 1 : 0;
                         console.log(`[VM] NE: ${a} != ${b} = ${result}`);
                         this.pushOperand(result);
