@@ -28,7 +28,6 @@ export enum InstructionTag {
     RET = "RET",                         // Return from a function
     STOREREF = "STOREREF",               // Store a value through a reference
     NEG = "NEG",                   // Negate a value
-    LOAD_INDIRECT = "LOAD_INDIRECT", // Load a value from an address
 }
 export class Instruction {
     public tag: InstructionTag;
@@ -58,7 +57,7 @@ export class VirtualMachine {
     private memSize: number;
 
     // Label support for VM jumps
-    private jumpTable: { [label: string]: number } = {};
+    private labels: Map<string, number> = new Map();
     private forwardRefs: Map<string, number[]> = new Map();
 
     private static readonly OS_BASE = 0;
@@ -235,21 +234,24 @@ export class VirtualMachine {
 
     // Add a label at the current instruction counter
     public addLabel(label: string): void {
-        // Record the current position for this label
-        this.jumpTable[label] = this.ic;
         console.log(`[VM] Adding label '${label}' at instruction ${this.ic}`);
-        
+        this.labels.set(label, this.ic);
+
         // Resolve any forward references to this label
         if (this.forwardRefs.has(label)) {
             const refs = this.forwardRefs.get(label)!;
-            console.log(`[VM] Resolving ${refs.length} forward references to label '${label}'`);
-            
-            for (const ref of refs) {
-                // Update the instruction with the actual jump target
-                this.setInstructionTarget(ref, this.ic);
+            console.log(
+                `[VM] Resolving ${refs.length} forward references to label '${label}'`
+            );
+
+            for (const instructionIndex of refs) {
+                this.setInstructionTarget(instructionIndex, this.ic);
+                console.log(
+                    `[VM] Resolved jump at instruction ${instructionIndex} to target ${this.ic}`
+                );
             }
-            
-            // Clear the forward references for this label
+
+            // Clear the resolved references
             this.forwardRefs.delete(label);
         }
     }
@@ -259,15 +261,16 @@ export class VirtualMachine {
         const idx = this.pushInstruction(InstructionTag.GOTO);
 
         // If the label already exists, set the target
-        if (label in this.jumpTable) {
-            this.setInstructionTarget(idx - 1, this.jumpTable[label]);
+        if (this.labels.has(label)) {
+            this.setInstructionTarget(idx - 1, this.labels.get(label)!);
         } else {
             if (!this.forwardRefs.has(label)) {
                 this.forwardRefs.set(label, []);
             }
             this.forwardRefs.get(label)!.push(idx - 1);
             console.log(
-                `[VM] Added forward reference to label '${label}' from instruction ${idx - 1}`
+                `[VM] Added forward reference to label '${label}' from instruction ${idx - 1
+                }`
             );
         }
 
@@ -280,15 +283,16 @@ export class VirtualMachine {
         const idx = this.pushInstruction(InstructionTag.JOF);
 
         // If the label already exists, set the target
-        if (label in this.jumpTable) {
-            this.setInstructionTarget(idx - 1, this.jumpTable[label]);
+        if (this.labels.has(label)) {
+            this.setInstructionTarget(idx - 1, this.labels.get(label)!);
         } else {
             if (!this.forwardRefs.has(label)) {
                 this.forwardRefs.set(label, []);
             }
             this.forwardRefs.get(label)!.push(idx - 1);
             console.log(
-                `[VM] Added forward reference to label '${label}' from instruction ${idx - 1}`
+                `[VM] Added forward reference to label '${label}' from instruction ${idx - 1
+                }`
             );
         }
 
@@ -315,12 +319,22 @@ export class VirtualMachine {
 
     public run(): number {
         this.pc = 0;
-        
+        this.osPtr = 0; // Reset operand stack pointer
+
         try {
             while (this.pc < this.ic) {
-                const instr = this.instructions[this.pc];
-                console.log(`[VM] Executing: ${InstructionTag[instr.tag]} ${instr.value !== undefined ? instr.value : ''}`);
-                
+                const instr = this.instructions[this.pc++];
+
+                if (!instr) {
+                    throw new Error(`Invalid instruction at ${this.pc - 1}`);
+                }
+
+                // Debug instruction execution
+                console.log(
+                    `[VM] Executing: ${instr.tag}${instr.value !== undefined ? " " + instr.value : ""
+                    }`
+                );
+
                 switch (instr.tag) {
                     case InstructionTag.DONE:
                         // Return the top value from the stack
@@ -329,7 +343,7 @@ export class VirtualMachine {
                         if (instr.value !== undefined) {
                             this.pushOperand(instr.value);
                         } else {
-                            console.warn(`LDCN with undefined value at ${this.pc}`);
+                            console.warn(`LDCN with undefined value at ${this.pc - 1}`);
                             this.pushOperand(0);
                         }
                         break;
@@ -412,22 +426,24 @@ export class VirtualMachine {
                     }
                     case InstructionTag.GOTO: {
                         if (instr.value === undefined) {
-                            throw new Error("GOTO instruction missing target address");
+                            throw new Error("GOTO instruction missing target");
                         }
                         console.log(`[VM] GOTO: Jumping to ${instr.value}`);
                         this.pc = instr.value;
-                        continue; // Skip pc++
+                        break;
                     }
                     case InstructionTag.JOF: {
                         if (instr.value === undefined) {
-                            throw new Error("JOF instruction missing target address");
+                            throw new Error("JOF instruction missing target");
                         }
-                        
+
                         const condition = this.popOperand();
+                        // Jump if the condition is false (0)
                         if (condition === 0) {
-                            console.log(`[VM] JOF: Condition false, jumping to ${instr.value}`);
+                            console.log(
+                                `[VM] JOF: Condition false, jumping to ${instr.value}`
+                            );
                             this.pc = instr.value;
-                            continue; // Skip pc++
                         } else {
                             console.log(`[VM] JOF: Condition true, continuing`);
                         }
@@ -491,13 +507,13 @@ export class VirtualMachine {
                         // Store the address of the next instruction to return to
                         this.pushReturn(this.pc + 1); 
                         this.pc = instr.value;
-                        continue; // Skip pc++
+                        break;
                     }
                     case InstructionTag.RETURN: {
                         const returnAddr = this.popReturn();
                         console.log(`[VM] RETURN: Returning to ${returnAddr}`);
                         this.pc = returnAddr;
-                        continue; // Skip pc++
+                        break;
                     }
                     case InstructionTag.STORE_WITH_TYPE: {
                         if (instr.value === undefined) {
@@ -597,27 +613,9 @@ export class VirtualMachine {
                         break;
                     }
                     
-                    case InstructionTag.LOAD_INDIRECT: {
-                        // Pop an address from the operand stack
-                        const address = this.popOperand();
-                        
-                        // Load the value at that address
-                        if (!(address in this.memory)) {
-                            throw new Error(`Invalid memory access at address ${address}`);
-                        }
-                        const value = this.load(address);
-                        console.log(`[VM] LOAD_INDIRECT: Loaded value at address ${address}: ${value}`);
-                        
-                        // Push the value onto the operand stack
-                        this.pushOperand(value);
-                        break;
-                    }
-                    
                     default:
                         console.warn(`Unknown instruction: ${instr.tag}`);
                 }
-                
-                this.pc++;
             }
             // No DONE instruction found
             return this.osPtr > 0 ? this.popOperand() : 0;
@@ -647,8 +645,6 @@ export class VirtualMachine {
         this.memory = new ArrayBuffer(this.memSize);
         this.view = new DataView(this.memory);
         this.returnStack = [];
-        this.jumpTable = {};
-        this.forwardRefs = new Map();
         console.log("[VM] VM state reset");
     }
 
