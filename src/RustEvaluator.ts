@@ -758,7 +758,7 @@ export class RustEvaluatorVisitor
             throw new Error(`Undefined function: ${funcName}`);
         }
 
-        const params = funcDef.paramList.param() || [];
+        const params = funcDef.paramList ? funcDef.paramList.param() : [];
         const args = ctx.argList()?.expression() || [];
 
         if (params.length !== args.length) {
