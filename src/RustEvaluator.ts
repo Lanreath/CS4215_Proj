@@ -12,6 +12,7 @@ import { InstructionTag, VirtualMachine } from "./VirtualMachine";
 
 export enum Type {
     I64 = "i64",
+    BOOL = "bool",
     REF = "ref",
     REF_MUT = "ref_mut",
     VOID = "void",
@@ -64,6 +65,8 @@ export class TypeInfo {
             const typeName = ctx.getText();
             if (typeName === "i64") {
                 return new TypeInfo(Type.I64);
+            } else if (typeName === "bool") {
+                return new TypeInfo(Type.BOOL);
             } else {
                 throw new Error(`Unsupported type: ${typeName}`);
             }
@@ -207,6 +210,20 @@ export class RustEvaluatorVisitor
         );
     }
 
+    // private declareVariable(name: string, typeInfo: TypeInfo, mutable: boolean): void {
+    //     const currentScope = this.scopes[this.scopes.length - 1];
+    //     if (currentScope.has(name)) {
+    //         throw new Error(`Variable ${name} is already declared in this scope`);
+    //     }
+    
+    //     // Register the variable in the current scope
+    //     currentScope.set(name, true);
+    
+    //     // Create the variable state
+    //     this.variableStates.set(name, new VariableState(BorrowState.Owned, typeInfo, mutable));
+    //     console.log(`[STATIC CHECK] Declared variable: ${name}, type: ${typeInfo}, mutable: ${mutable}`);
+    // }
+
     // Ownership management
     private moveVariable(sourceVar: string, destVar: string, isMutable: boolean): void {
         const sourceState = this.lookupVariable(sourceVar);
@@ -223,16 +240,33 @@ export class RustEvaluatorVisitor
             );
         }
 
-        if (sourceState.borrowers.length > 0) {
-            throw new BorrowError(`Cannot move ${sourceVar} while it is borrowed`);
+        if (sourceState.state === BorrowState.BorrowedMutably || 
+            sourceState.state === BorrowState.BorrowedImmutably) {
+            throw new OwnershipError(`Cannot move ${sourceVar} while it is borrowed`);
         }
 
-        // Move ownership
-        const newState = new VariableState(isMutable, sourceState.address, sourceState.typeInfo);
-        this.variableStates.set(destVar, newState);
-
+        // Create a new variable for the destination
+        const destAddr = this.vm.allocateVariable();
+        
+        // Move the value
+        this.vm.pushInstruction(InstructionTag.LOAD, sourceState.address);
+        this.vm.pushInstruction(InstructionTag.STORE, destAddr);
+        
+        // Create state for destination
+        const destState = new VariableState(
+            isMutable, 
+            destAddr, 
+            sourceState.typeInfo
+        );
+        
+        // Set destination variable
+        this.variableStates.set(destVar, destState);
+        this.currentScope().set(destVar, true);
+        
         // Mark source as moved
         sourceState.state = BorrowState.Moved;
+        
+        console.log(`[MOVE] Moved value from ${sourceVar} to ${destVar}`);
     }
 
     // Borrowing management
@@ -255,9 +289,15 @@ export class RustEvaluatorVisitor
             );
         }
 
-        if (targetState.borrowers.length > 0) {
+        if (targetState.state === BorrowState.BorrowedMutably) {
             throw new BorrowError(
-                `Cannot mutably borrow ${targetVar} as it is already borrowed`
+                `Cannot mutably borrow ${targetVar} as it is already mutably borrowed`
+            );
+        }
+
+        if (targetState.state === BorrowState.BorrowedImmutably && targetState.borrowers.length > 0) {
+            throw new BorrowError(
+                `Cannot mutably borrow ${targetVar} as it is already immutably borrowed`
             );
         }
 
@@ -267,6 +307,8 @@ export class RustEvaluatorVisitor
 
         // Record the reference relationship
         this.referenceMap.set(borrowerVar, targetVar);
+        
+        console.log(`[BORROW] Variable ${targetVar} mutably borrowed by ${borrowerVar}`);
     }
 
     // Enhance your borrowImmutably method
@@ -299,28 +341,56 @@ export class RustEvaluatorVisitor
 
         // Record the reference relationship
         this.referenceMap.set(borrowerVar, targetVar);
+        
+        console.log(`[BORROW] Variable ${targetVar} immutably borrowed by ${borrowerVar}`);
     }
 
-    private releaseBorrow(borrowerVar: string): void {
-        const targetVar = this.referenceMap.get(borrowerVar);
-        if (!targetVar) return;
-
+    private releaseBorrow(refName: string): void {
+        // Get the target variable this reference is borrowing
+        const targetVar = this.referenceMap.get(refName);
+        if (!targetVar) {
+            console.log(`[WARNING] Tried to release borrow for ${refName} but no target found`);
+            return;
+        }
+        
+        // Get the target state
         const targetState = this.lookupVariable(targetVar);
-        if (!targetState) return;
-
-        // Remove this borrower
-        const index = targetState.borrowers.indexOf(borrowerVar);
+        if (!targetState) {
+            console.log(`[WARNING] Target variable ${targetVar} not found when releasing borrow`);
+            return;
+        }
+        
+        // Remove this borrower from the target's borrowers list
+        const index = targetState.borrowers.indexOf(refName);
         if (index !== -1) {
             targetState.borrowers.splice(index, 1);
-
-            // Reset state if no more borrowers
-            if (targetState.borrowers.length === 0) {
-                targetState.state = BorrowState.Owned;
+            console.log(`[BORROW] Removed ${refName} from borrowers of ${targetVar}`);
+        }
+        
+        // Update the target's state based on remaining borrowers
+        if (targetState.borrowers.length === 0) {
+            // No more borrowers, restore to Owned state
+            targetState.state = BorrowState.Owned;
+            console.log(`[BORROW] Restored ${targetVar} to Owned state`);
+        } else if (targetState.state === BorrowState.BorrowedMutably) {
+            // If there are still borrowers but it was mutably borrowed,
+            // it should now be immutably borrowed (because we just removed a mutable borrow)
+            let hasMutableBorrower = false;
+            for (const borrower of targetState.borrowers) {
+                const borrowerState = this.lookupVariable(borrower);
+                if (borrowerState && borrowerState.typeInfo.baseType === Type.REF_MUT) {
+                    hasMutableBorrower = true;
+                    break;
+                }
+            }
+            if (!hasMutableBorrower) {
+                targetState.state = BorrowState.BorrowedImmutably;
+                console.log(`[BORROW] Changed ${targetVar} from mutable to immutable borrow`);
             }
         }
-
+        
         // Remove the reference mapping
-        this.referenceMap.delete(borrowerVar);
+        this.referenceMap.delete(refName);
     }
 
     // Access checks
@@ -388,9 +458,23 @@ export class RustEvaluatorVisitor
     }
 
     private getExpressionType(expr: rp.ExpressionContext): Type {
-        if (expr instanceof rp.IntContext || expr instanceof rp.EqualityOpContext || expr instanceof rp.AddSubOpContext || expr instanceof rp.MulDivOpContext || expr instanceof rp.ParenExprContext || expr instanceof rp.UnaryOpContext) {
-            // Assuming all arithmetic expressions are i64
+        if (expr instanceof rp.IntContext) {
             return Type.I64;
+        } else if (expr instanceof rp.BoolContext) {
+            return Type.BOOL;
+        } else if (expr instanceof rp.LogicalNotOpContext || 
+                   expr instanceof rp.LogicalAndOpContext || 
+                   expr instanceof rp.LogicalOrOpContext) {
+            return Type.BOOL;
+        } else if (expr instanceof rp.EqualityOpContext) {
+            // All equality operations return boolean
+            return Type.BOOL;
+        } else if (expr instanceof rp.AddSubOpContext || 
+                   expr instanceof rp.MulDivOpContext || 
+                   expr instanceof rp.UnaryOpContext) {
+            return Type.I64;
+        } else if (expr instanceof rp.ParenExprContext) {
+            return this.getExpressionType(expr.expression());
         } else if (expr instanceof rp.IdentifierContext) {
             // Check if the variable is defined
             const varName = expr.getText();
@@ -409,6 +493,22 @@ export class RustEvaluatorVisitor
             } else {
                 throw new Error(`Undefined function: ${funcName}`);
             }
+        } else if (expr instanceof rp.ReferenceExprContext) {
+            // References maintain the base type but wrap it
+            return Type.REF;
+        } else if (expr instanceof rp.DereferenceExprContext) {
+            // Unwrap the reference type
+            if (expr._target instanceof rp.IdentifierContext) {
+                const refName = expr._target.getText();
+                const targetName = this.referenceMap.get(refName);
+                if (targetName) {
+                    const targetState = this.lookupVariable(targetName);
+                    if (targetState) {
+                        return targetState.typeInfo.baseType;
+                    }
+                }
+            }
+            return Type.I64; // Default if we can't determine
         } else {
             throw new Error('Unsupported expression type');
         }
@@ -504,7 +604,6 @@ export class RustEvaluatorVisitor
         return 0;
     }
 
-    // Variable declaration with dynamic type checking
     visitVariableDeclaration(ctx: rp.VariableDeclarationContext): number {
         if (!ctx._name || !ctx._value) {
             throw new Error("Invalid variable declaration");
@@ -521,6 +620,14 @@ export class RustEvaluatorVisitor
             typeInfo = TypeInfo.fromTypeContext(ctx.type());
         } else {
             typeInfo = new TypeInfo(Type.I64); // Default type
+        }
+        
+        // Check expression type BEFORE evaluating it
+        const expressionType = this.getExpressionType(ctx._value);
+        
+        // Verify type compatibility
+        if (expressionType !== typeInfo.baseType) {
+            throw new Error(`Type mismatch in declaration of '${name}': expected ${typeInfo.baseType}, got ${expressionType}`);
         }
         
         // Create the variable state
@@ -551,18 +658,33 @@ export class RustEvaluatorVisitor
 
         this.checkWriteAccess(target);
 
-        // Evaluate the expression, which puts its value on the stack
-        const value = this.visit(ctx.expression());
-        const type = this.getExpressionType(ctx.expression());
-
-        if (type !== targetState.typeInfo.baseType) {
-            throw new Error(
-                `Type mismatch: cannot assign ${type} to ${targetState.typeInfo.baseType}`
-            );
+        // Check if the expression is a variable (potential move)
+        if (ctx.expression() instanceof rp.IdentifierContext) {
+            const sourceVar = ctx.expression().getText();
+            const sourceState = this.lookupVariable(sourceVar);
+            
+            if (sourceState) {
+                // Determine if this is a primitive type (copy semantics) or a move
+                const isCopyType = 
+                    sourceState.typeInfo.baseType === Type.I64 || 
+                    sourceState.typeInfo.baseType === Type.BOOL;
+                
+                if (isCopyType) {
+                    // For primitive types (i64, bool) - just copy the value
+                    console.log(`[COPY] Copying value from ${sourceVar} to ${target}`);
+                    this.vm.pushInstruction(InstructionTag.LOAD, sourceState.address);
+                    this.vm.pushInstruction(InstructionTag.STORE, targetState.address);
+                } else {
+                    // For non-primitive types - apply move semantics
+                    console.log(`[MOVE] Moving value from ${sourceVar} to ${target}`);
+                    this.moveVariable(sourceVar, target, targetState.mutable);
+                }
+                return 0;
+            }
         }
-
-        // Evaluate the expression
-        console.log(`Assigning value ${value} to ${target}`);
+        
+        // For expressions, evaluate and store
+        this.visit(ctx.expression());
         this.vm.pushInstruction(InstructionTag.STORE, targetState.address);
 
         return 0;
@@ -570,98 +692,95 @@ export class RustEvaluatorVisitor
 
     // Visit a parse tree produced by RustParser#referenceExpr
     visitReferenceExpr(ctx: rp.ReferenceExprContext): number {
-        const targetExpr = ctx._target;
-        let targetVar: string;
-
-        if (!targetExpr) {
-            throw new BorrowError("Invalid reference syntax");
+        // Get the target variable name
+        const target = ctx._target.getText();
+        const mutable = ctx._mutFlag ? true : false;
+        
+        // Check if the target variable exists
+        const targetState = this.lookupVariable(target);
+        if (!targetState) {
+            throw new Error(`Cannot borrow undefined variable: ${target}`);
         }
-
-        // Extract the variable name
-        if (targetExpr instanceof rp.IdentifierContext) {
-            targetVar = targetExpr.getText();
-        } else if (
-            targetExpr instanceof rp.ReferenceExprContext ||
-            targetExpr instanceof rp.DereferenceExprContext
-        ) {
-            // TODO: Handle nested references
-            throw new BorrowError("Nested references not supported");
+        
+        // Check borrowing rules
+        if (mutable) {
+            this.borrowMutably(target, `ref_to_${target}_${Date.now()}`);
         } else {
-            throw new BorrowError("Can only borrow variables directly");
+            this.borrowImmutably(target, `ref_to_${target}_${Date.now()}`);
         }
-
-        // Check if we're dealing with a &mut or just &
-        const isMutable = ctx._mutFlag ? true : false;
-
-        // Generate a synthetic name for the reference
-        const refName = `ref_to_${targetVar}_${Date.now()}`;
-
-        // Perform the borrow
-        if (isMutable) {
-            this.borrowMutably(targetVar, refName);
-        } else {
-            this.borrowImmutably(targetVar, refName);
-        }
-
-        // Create variable state with proper type info for the reference
-        const targetState = this.lookupVariable(targetVar);
-        if (targetState) {
-            // Create a reference type that points to the target var
-            const refTypeInfo = new TypeInfo(
-                isMutable ? Type.REF_MUT : Type.REF,
-                targetVar
-            );
-            
-            // Create a variable state for the reference
-            const addr = this.vm.allocateVariable();
-            const refState = new VariableState(false, addr, refTypeInfo);
-            this.variableStates.set(refName, refState);
-            
-            // Register in current scope
-            this.currentScope().set(refName, true);
-            
-            // Store the value (address) of the target in the reference
-            this.vm.pushInstruction(InstructionTag.LDCN, targetState.address);
-            this.vm.pushInstruction(InstructionTag.STORE, addr);
-        }
-
-        // Store the reference name in a property so we can access it in variableDeclaration
+        
+        // Create a unique name for the reference
+        const refName = `ref_to_${target}_${Date.now()}`;
         this.lastCreatedReference = refName;
-
-        return 0;
+        
+        // Store the reference in memory
+        // IMPORTANT: Store the ADDRESS of the variable, not its valueget's address
+        const refAddr = this.vm.allocateVariable();
+        this.vm.pushInstruction(InstructionTag.LDCN, targetState.address);
+        this.vm.pushInstruction(InstructionTag.STORE, refAddr);
+        
+        // Create a variable state for the reference
+        const typeInfo = new TypeInfo(mutable ? Type.REF_MUT : Type.REF, target);
+        const refState = new VariableState(false, refAddr, typeInfo);
+        
+        // Record the reference in the current scope
+        this.variableStates.set(refName, refState);
+        this.currentScope().set(refName, true);
+        
+        // Record the reference relationship
+        this.referenceMap.set(refName, target);
+        
+        console.log(`[BORROW] Created reference ${refName} to ${target}`);
+        
+        // Return the reference's address
+        return refAddr;
     }
 
     // Visit a parse tree produced by RustParser#dereferenceExpr
     visitDereferenceExpr(ctx: rp.DereferenceExprContext): number {
-        // Get the reference expression (what is being dereferenced)
-        const refExpr = ctx._target;
-        if (!refExpr || !(refExpr instanceof rp.IdentifierContext)) {
-            throw new BorrowError("Can only dereference variables");
+        // First visit the target expression to get the reference
+        const refAddr = this.visit(ctx._target);
+        
+        // If the target is an identifier, check if it's a reference
+        if (ctx._target instanceof rp.IdentifierContext) {
+            const refName = ctx._target.getText();
+            const refState = this.lookupVariable(refName);
+            
+            // Check if the variable exists and is a reference
+            if (!refState) {
+                throw new Error(`Variable ${refName} not found`);
+            }
+            
+            if (refState.typeInfo.baseType !== Type.REF && refState.typeInfo.baseType !== Type.REF_MUT) {
+                throw new BorrowError(`${refName} is not a reference`);
+            }
+            
+            // Get the target variable name from the reference map
+            const targetName = this.referenceMap.get(refName);
+            if (!targetName) {
+                throw new Error(`Reference ${refName} doesn't point to any variable`);
+            }
+            
+            // Get the target variable's address
+            const targetState = this.lookupVariable(targetName);
+            if (!targetState) {
+                throw new Error(`Target variable ${targetName} not found`);
+            }
+            
+            // Load the address the reference points to
+            this.vm.pushInstruction(InstructionTag.LOAD, refState.address);
+            
+            // Then fetch the value at that address (dereference)
+            this.vm.pushInstruction(InstructionTag.FETCH);
+            
+            console.log(`[BORROW] Dereferenced ${refName} to access ${targetName}`);
+            
+            return 0;
         }
-
-        const refName = refExpr.getText();
-        // Check if this is actually a reference
-        if (!this.isReference(refName)) {
-            throw new BorrowError(`${refName} is not a reference`);
-        }
-
-        // Get the target variable that this reference points to
-        const targetVar = this.referenceMap.get(refName);
-        if (!targetVar) {
-            throw new BorrowError(`${refName} does not point to a valid variable`);
-        }
-
-        // Get the target value
-        const targetState = this.lookupVariable(targetVar);
-        if (!targetState) {
-            throw new BorrowError(`Target of reference ${refName} no longer exists`);
-        }
-
-        // Push the referenced address to the VM stack
-        this.vm.pushInstruction(InstructionTag.LOAD, targetState.address);
-        // Fetch the value from the address
+        
+        // For non-identifier targets, assume the stack already has the reference address
         this.vm.pushInstruction(InstructionTag.FETCH);
-
+        
         return 0;
     }
 
@@ -1030,40 +1149,54 @@ export class RustEvaluatorVisitor
     }
 
     // Visit a parse tree produced by RustParser#equalityOp
-    visitEqualityOp(ctx: rp.EqualityOpContext): number {
-        // Evaluate the left and right expressions
-        this.visit(ctx.expression(0));
-        this.visit(ctx.expression(1));
+    // visitEqualityOp(ctx: rp.EqualityOpContext): number {
+    //     // Evaluate the left and right expressions
+    //     const leftType = this.getExpressionType(ctx.expression(0));
+    //     const rightType = this.getExpressionType(ctx.expression(1)); 
 
-        const op = ctx._op.text;
-        console.log(`[COMPILE] Comparison operation: ${op}`);
+    //     // Type checking - both operands must be of the same type for comparison
+    //     if (leftType !== rightType) {
+    //         throw new Error(`Type mismatch in comparison: cannot compare ${leftType} with ${rightType}`);
+    //     }
 
-        // Push the appropriate instruction
-        switch (op) {
-            case ">":
-                this.vm.pushInstruction(InstructionTag.GT);
-                break;
-            case ">=":
-                this.vm.pushInstruction(InstructionTag.GE);
-                break;
-            case "<":
-                this.vm.pushInstruction(InstructionTag.LT);
-                break;
-            case "<=":
-                this.vm.pushInstruction(InstructionTag.LE);
-                break;
-            case "==":
-                this.vm.pushInstruction(InstructionTag.EQ);
-                break;
-            case "!=":
-                this.vm.pushInstruction(InstructionTag.NE);
-                break;
-            default:
-                throw new Error(`Unknown comparison operator: ${op}`);
-        }
+    //     // Only numeric and boolean types can be compared
+    //     if (leftType !== Type.I64 && leftType !== Type.BOOL) {
+    //         throw new Error(`Invalid operand types for comparison: ${leftType}`);
+    //     }
 
-        return 0;
-    }
+    //     // Now actually evaluate the expressions
+    //     this.visit(ctx.expression(0));
+    //     this.visit(ctx.expression(1));
+
+    //     const op = ctx._op.text;
+    //     console.log(`[COMPILE] Comparison operation: ${op}`);
+
+    //     // Push the appropriate instruction
+    //     switch (op) {
+    //         case ">":
+    //             this.vm.pushInstruction(InstructionTag.GT);
+    //             break;
+    //         case ">=":
+    //             this.vm.pushInstruction(InstructionTag.GE);
+    //             break;
+    //         case "<":
+    //             this.vm.pushInstruction(InstructionTag.LT);
+    //             break;
+    //         case "<=":
+    //             this.vm.pushInstruction(InstructionTag.LE);
+    //             break;
+    //         case "==":
+    //             this.vm.pushInstruction(InstructionTag.EQ);
+    //             break;
+    //         case "!=":
+    //             this.vm.pushInstruction(InstructionTag.NE);
+    //             break;
+    //         default:
+    //             throw new Error(`Unknown comparison operator: ${op}`);
+    //     }
+
+    //     return 0;
+    // }
 
     // Visit a parse tree produced by RustParser#breakStatement
     visitBreakStatement(ctx: rp.BreakStatementContext): number {
@@ -1090,21 +1223,25 @@ export class RustEvaluatorVisitor
     }
 
     // Visit identifiers (variables)
-    visitIdentifier(ctx: rp.IdentifierContext): number {
-        const name = ctx.IDENTIFIER().getText();
-        const state = this.lookupVariable(name);
-        
-        if (!state) {
-            throw new Error(`Variable ${name} is not defined`);
-        }
-        
-        this.checkReadAccess(name);
-        
-        // Load the variable value onto the stack
-        this.vm.pushInstruction(InstructionTag.LOAD, state.address);
-        
-        return 0;
+    // Update visitIdentifier to check for moved variables
+visitIdentifier(ctx: rp.IdentifierContext): number {
+    const name = ctx.getText();
+    const state = this.lookupVariable(name);
+    
+    if (!state) {
+        throw new Error(`Variable ${name} is not declared`);
     }
+    
+    // Check if the variable has been moved (only matters for non-primitive types)
+    if (state.state === BorrowState.Moved && !this.isCopyType(state.typeInfo.baseType)) {
+        throw new OwnershipError(`Cannot use ${name} after it has been moved`);
+    }
+    
+    // Load the value
+    this.vm.pushInstruction(InstructionTag.LOAD, state.address);
+    
+    return 0;
+}
 
     visitAddSubOp(ctx: rp.AddSubOpContext): number {
         // First visit the left operand
@@ -1159,6 +1296,222 @@ export class RustEvaluatorVisitor
         }
         
         return 0;
+    }
+
+    private assignVariable(name: string, valueType: TypeInfo): void {
+        const state = this.lookupVariable(name);
+        if (!state) {
+            throw new Error(`Variable ${name} is not declared`);
+        }
+        if (!state.mutable) {
+            throw new Error(`Cannot assign to immutable variable ${name}`);
+        }
+        if (state.state === BorrowState.Moved) {
+            throw new Error(`Cannot assign to ${name} because it has been moved`);
+        }
+        if (state.state === BorrowState.BorrowedMutably) {
+            throw new Error(`Cannot assign to ${name} because it is mutably borrowed`);
+        }
+        if (!this.checkTypeCompatibility(state.typeInfo, valueType)) {
+            throw new Error(`Type mismatch: expected ${state.typeInfo}, got ${valueType}`);
+        }
+        console.log(`[STATIC CHECK] Assigned value to variable: ${name}`);
+    }
+
+    private checkTypeCompatibility(actual: TypeInfo, expected: TypeInfo): boolean {
+        // Basic case: exact type match
+        if (actual.baseType === expected.baseType) {
+            return true;
+        }
+
+        // Reference compatibility rules
+        if ((actual.baseType === Type.REF || actual.baseType === Type.REF_MUT) &&
+            (expected.baseType === Type.REF || expected.baseType === Type.REF_MUT)) {
+            
+            // Immutable references can be passed to immutable reference parameters
+            if (actual.baseType === Type.REF && expected.baseType === Type.REF) {
+                return true;
+            }
+            
+            // Mutable references can be passed to immutable reference parameters
+            if (actual.baseType === Type.REF_MUT && expected.baseType === Type.REF) {
+                return true;
+            }
+            
+            // Mutable references can only be passed to mutable reference parameters
+            if (actual.baseType === Type.REF_MUT && expected.baseType === Type.REF_MUT) {
+                return true;
+            }
+        }
+
+        // Boolean compatibility
+        if (actual.baseType === Type.BOOL && expected.baseType === Type.BOOL) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // Visit a parse tree produced by RustParser#logicalNotOp
+    visitLogicalNotOp(ctx: rp.LogicalNotOpContext): number {
+        // Evaluate the operand
+        this.visit(ctx.expression());
+
+        // Check the operand's type
+        const operandType = this.getExpressionType(ctx.expression());
+        if (operandType !== Type.BOOL) {
+            throw new Error(`Logical NOT (!) can only be applied to boolean values, got ${operandType}`);
+        }
+
+        // Push the logical NOT instruction
+        this.vm.pushInstruction(InstructionTag.NOT);
+        console.log(`[COMPILE] Logical NOT operation`);
+        
+        return 0;
+    }
+
+    // Visit a parse tree produced by RustParser#logicalAndOp
+    visitLogicalAndOp(ctx: rp.LogicalAndOpContext): number {
+        // Check types first
+        const leftType = this.getExpressionType(ctx.expression(0));
+        const rightType = this.getExpressionType(ctx.expression(1));
+        
+        if (leftType !== Type.BOOL || rightType !== Type.BOOL) {
+            throw new Error(`Logical AND (&&) requires boolean operands, got ${leftType} && ${rightType}`);
+        }
+        
+        // Generate a short-circuit label
+        const shortCircuitLabel = `and_short_circuit_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        const endLabel = `and_end_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        
+        // Evaluate the left operand
+        this.visit(ctx.expression(0));
+        
+        // If left operand is false, short-circuit (result is false)
+        this.vm.pushInstruction(InstructionTag.DUP); // Duplicate the value for the condition check
+        this.vm.pushJof(shortCircuitLabel); // Jump if false
+        
+        // Evaluate the right operand
+        this.visit(ctx.expression(1));
+        
+        // Perform the AND operation
+        this.vm.pushInstruction(InstructionTag.AND);
+        this.vm.pushGoto(endLabel);
+        
+        // Short circuit: left was false, so result is false
+        this.vm.addLabel(shortCircuitLabel);
+        this.vm.pushInstruction(InstructionTag.POP); // Pop the duplicated value
+        this.vm.pushInstruction(InstructionTag.LDCN, 0); // Push false
+        
+        // End label
+        this.vm.addLabel(endLabel);
+        
+        console.log(`[COMPILE] Logical AND operation`);
+        return 0;
+    }
+
+    // Visit a parse tree produced by RustParser#logicalOrOp
+    visitLogicalOrOp(ctx: rp.LogicalOrOpContext): number {
+        // Check operand types first
+        const leftType = this.getExpressionType(ctx.expression(0));
+        const rightType = this.getExpressionType(ctx.expression(1));
+        
+        if (leftType !== Type.BOOL || rightType !== Type.BOOL) {
+            throw new Error(`Logical OR (||) requires boolean operands, got ${leftType} || ${rightType}`);
+        }
+        
+        // Generate a short-circuit label
+        const shortCircuitLabel = `or_short_circuit_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        const endLabel = `or_end_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        
+        // Evaluate the left operand
+        this.visit(ctx.expression(0));
+        
+        // If left operand is true, short-circuit (result is true)
+        this.vm.pushInstruction(InstructionTag.DUP); // Duplicate the value for the condition check
+        this.vm.pushJof(shortCircuitLabel); // Jump if not false (i.e., true)
+        
+        // Evaluate the right operand
+        this.visit(ctx.expression(1));
+        
+        // Perform the OR operation
+        this.vm.pushInstruction(InstructionTag.OR);
+        this.vm.pushGoto(endLabel);
+        
+        // Short circuit: left was true, so result is true
+        this.vm.addLabel(shortCircuitLabel);
+        this.vm.pushInstruction(InstructionTag.POP); // Pop the duplicated value
+        this.vm.pushInstruction(InstructionTag.LDCN, 1); // Push true
+        
+        // End label
+        this.vm.addLabel(endLabel);
+        
+        console.log(`[COMPILE] Logical OR operation`);
+        return 0;
+    }
+
+    // Enhance boolean literal support
+    visitBool(ctx: rp.BoolContext): number {
+        const value = ctx.BOOL().getText() === "true" ? 1 : 0;
+        console.log(`[COMPILE] Loading boolean constant: ${value === 1 ? 'true' : 'false'}`);
+        this.vm.pushInstruction(InstructionTag.LDCN, value);
+        return 0;
+    }
+
+    // Enhance visitEqualityOp for better type checking
+    visitEqualityOp(ctx: rp.EqualityOpContext): number {
+        // Evaluate the left and right expressions
+        const leftType = this.getExpressionType(ctx.expression(0));
+        const rightType = this.getExpressionType(ctx.expression(1)); 
+
+        // Type checking - both operands must be of the same type for comparison
+        if (leftType !== rightType) {
+            throw new Error(`Type mismatch in comparison: cannot compare ${leftType} with ${rightType}`);
+        }
+
+        // Only numeric and boolean types can be compared
+        if (leftType !== Type.I64 && leftType !== Type.BOOL) {
+            throw new Error(`Invalid operand types for comparison: ${leftType}`);
+        }
+
+        // Now actually evaluate the expressions
+        this.visit(ctx.expression(0));
+        this.visit(ctx.expression(1));
+
+        const op = ctx._op.text;
+        console.log(`[COMPILE] Comparison operation: ${op}`);
+
+        // Push the appropriate instruction
+        switch (op) {
+            case ">":
+                this.vm.pushInstruction(InstructionTag.GT);
+                break;
+            case ">=":
+                this.vm.pushInstruction(InstructionTag.GE);
+                break;
+            case "<":
+                this.vm.pushInstruction(InstructionTag.LT);
+                break;
+            case "<=":
+                this.vm.pushInstruction(InstructionTag.LE);
+                break;
+            case "==":
+                this.vm.pushInstruction(InstructionTag.EQ);
+                break;
+            case "!=":
+                this.vm.pushInstruction(InstructionTag.NE);
+                break;
+            default:
+                throw new Error(`Unknown comparison operator: ${op}`);
+        }
+
+        return 0;
+    }
+
+    // Add this to your RustEvaluatorVisitor class
+    private isCopyType(type: Type): boolean {
+        // In Rust, primitive types like i64, bool have copy semantics
+        return type === Type.I64 || type === Type.BOOL;
     }
 }
 

@@ -28,6 +28,12 @@ export enum InstructionTag {
     RET = "RET",                         // Return from a function
     STOREREF = "STOREREF",               // Store a value through a reference
     NEG = "NEG",                   // Negate a value
+    AND = "AND",                   // Logical AND
+    OR = "OR",                     // Logical OR
+    NOT = "NOT",                   // Logical NOT
+    DUP = "DUP",                   // Duplicate the top value on the stack
+    POP = "POP",                   // Pop the top value from the stack
+    JNOF = "JNOF",                 // Jump if not zero
 }
 export class Instruction {
     public tag: InstructionTag;
@@ -320,7 +326,8 @@ export class VirtualMachine {
     public run(): number {
         this.pc = 0;
         this.osPtr = 0; // Reset operand stack pointer
-
+        let a: number;
+        let b: number;
         try {
             while (this.pc < this.ic) {
                 const instr = this.instructions[this.pc++];
@@ -612,7 +619,34 @@ export class VirtualMachine {
                         console.log(`[VM] PUSH_TYPE: Type ${instr.value} recorded`);
                         break;
                     }
-                    
+                    case InstructionTag.AND:
+                        a = this.popOperand();
+                        b = this.popOperand();
+                        this.pushOperand(a !== 0 && b !== 0 ? 1 : 0);
+                        break;
+                    case InstructionTag.OR:
+                        a = this.popOperand();
+                        b = this.popOperand();
+                        this.pushOperand(a !== 0 || b !== 0 ? 1 : 0);
+                        break;
+                    case InstructionTag.NOT:
+                        a = this.popOperand();
+                        this.pushOperand(a === 0 ? 1 : 0);
+                        break;
+                    case InstructionTag.DUP:
+                        a = this.popOperand();
+                        this.pushOperand(a);
+                        this.pushOperand(a);
+                        break;
+                    case InstructionTag.POP:
+                        this.popOperand();
+                        break;
+                    case InstructionTag.JNOF:
+                        a = this.popOperand();
+                        if (a !== 0) {
+                            this.pc = instr.value;
+                        }
+                        break;
                     default:
                         console.warn(`Unknown instruction: ${instr.tag}`);
                 }

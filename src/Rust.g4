@@ -60,34 +60,39 @@ expressionStatement
     : expression ';'
     ;
 
-// Expression precedence levels
+// Expression precedence levels (updated to include booleans)
 expression
     : INT                     # int
+    | BOOL                    # bool
     | IDENTIFIER              # identifier
     | '(' expression ')'      # parenExpr
     | '-' expression          # unaryOp
+    | '!' expression          # logicalNotOp
     | expression op=('*'|'/') expression # mulDivOp
     | expression op=('+'|'-') expression # addSubOp
     | expression op=('<'|'<='|'>'|'>=') expression # equalityOp
     | expression op=('=='|'!=') expression # equalityOp
-    | IDENTIFIER '(' argList? ')'                      # functionCall   
-    | '&' mutFlag='mut'? target=expression             # referenceExpr
-    | '*' target=expression                            # dereferenceExpr
+    | expression op='&&' expression      # logicalAndOp
+    | expression op='||' expression      # logicalOrOp
+    | IDENTIFIER '(' argList? ')'        # functionCall   
+    | '&' mutFlag='mut'? target=expression # referenceExpr
+    | '*' target=expression              # dereferenceExpr
     ;
 
 argList
     : expression (',' expression)*
     ;
 
-// Updated to include reference types
+// Updated to include both integer and boolean types
 type
-    : (refFlag='&' mutFlag='mut'?)? 'i64'
+    : (refFlag='&' mutFlag='mut'?)? ('i64' | 'bool')
     ;
 
 breakStatement
     : 'break' ';'
     ;
 
+BOOL: 'true' | 'false';
 IDENTIFIER: [a-zA-Z_][a-zA-Z_0-9]*;
 INT: [0-9]+;
 
