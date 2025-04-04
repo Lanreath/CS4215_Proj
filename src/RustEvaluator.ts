@@ -48,10 +48,18 @@ class VariableState {
 export class TypeInfo {
     baseType: Type;
     refTarget?: string;  // For references, the name of the target variable
-    
-    constructor(baseType: Type, refTarget?: string) {
+    isReference: boolean;
+    isMutable: boolean;
+    hasCopyTrait: boolean
+
+    constructor(baseType: Type, refTarget?: string, isReference: boolean = false, isMutable: boolean = false) {
         this.baseType = baseType;
         this.refTarget = refTarget;
+        this.baseType = baseType;
+        this.isReference = isReference;
+        this.isMutable = isMutable;
+        
+        this.hasCopyTrait = false;
     }
     
     static fromTypeContext(ctx: rp.TypeContext): TypeInfo {
@@ -605,45 +613,84 @@ export class RustEvaluatorVisitor
     }
 
     visitVariableDeclaration(ctx: rp.VariableDeclarationContext): number {
-        if (!ctx._name || !ctx._value) {
-            throw new Error("Invalid variable declaration");
-        }
-        
-        const name = ctx._name.text;
-        const isMutable = ctx._mutFlag ? true : false;
-        
-        console.log(`[COMPILE] Declaring variable: ${name}, mutable: ${isMutable}`);
-        
-        // Extract the type
-        let typeInfo: TypeInfo;
-        if (ctx.type()) {
-            typeInfo = TypeInfo.fromTypeContext(ctx.type());
-        } else {
-            typeInfo = new TypeInfo(Type.I64); // Default type
-        }
-        
-        // Check expression type BEFORE evaluating it
-        const expressionType = this.getExpressionType(ctx._value);
-        
-        // Verify type compatibility
-        if (expressionType !== typeInfo.baseType) {
-            throw new Error(`Type mismatch in declaration of '${name}': expected ${typeInfo.baseType}, got ${expressionType}`);
-        }
-        
-        // Create the variable state
-        const addr = this.vm.allocateVariable();
-        const state = new VariableState(isMutable, addr, typeInfo);
-        this.variableStates.set(name, state);
-        this.currentScope().set(name, true);
-        
-        // Evaluate the expression, which puts its value on the stack
-        this.visit(ctx._value);
-        
-        // Store the value to the variable
-        this.vm.pushInstruction(InstructionTag.STORE, addr);
-        
-        return 0;
+    const varName = ctx._name.text;
+    const isMutable = ctx._mutFlag ? true : false;
+    
+    // Parse the type information
+    let typeInfo: TypeInfo;
+    if (ctx.type()) {
+        typeInfo = TypeInfo.fromTypeContext(ctx.type());
+    } else {
+        typeInfo = new TypeInfo(Type.I64); // Default type
     }
+    
+    console.log(`[COMPILE] Declaring variable: ${varName}, mutable: ${isMutable}, type: ${typeInfo.toString()}`);
+    
+    // Check if the variable is already defined in current scope
+    if (this.currentScope().has(varName)) {
+        throw new Error(`Variable ${varName} is already defined in current scope`);
+    }
+    
+    // Allocate memory for the variable
+    const address = this.vm.allocateVariable();
+    
+    // Create a variable state
+    const varState = new VariableState(isMutable, address, typeInfo);
+    
+    // Register the variable in the current scope
+    this.variableStates.set(varName, varState);
+    this.currentScope().set(varName, true);
+    
+    // If there's an initializer, compile it
+    if (ctx.expression()) {
+        const expr = ctx.expression();
+        
+        // Debug the expression type
+        console.log(`[DEBUG] Expression type: ${expr.constructor.name}`);
+        
+        // Check if this is a variable-to-variable assignment (should use instanceof)
+        if (expr instanceof rp.IdentifierContext) {
+            const sourceVar = expr.getText();
+            console.log(`[DEBUG] Source variable: ${sourceVar}`);
+            const sourceState = this.lookupVariable(sourceVar);
+            
+            if (sourceState) {
+                console.log(`[COMPILE] Variable-to-variable assignment from ${sourceVar} to ${varName}`);
+                
+                // For ALL types, enforce move semantics (hasCopyTrait is false)
+                console.log(`[COMPILE] Moving ${sourceVar} to ${varName}`);
+                
+                // Check if the source has been moved
+                if (sourceState.state === BorrowState.Moved) {
+                    throw new OwnershipError(`Cannot use ${sourceVar} after it has been moved`);
+                }
+                
+                // Check if the source is borrowed
+                if (sourceState.borrowers.length > 0) {
+                    throw new BorrowError(`Cannot move ${sourceVar} while it is borrowed`);
+                }
+                
+                // Load from source variable
+                this.vm.pushInstruction(InstructionTag.LOAD, sourceState.address);
+                
+                // Store to destination variable
+                this.vm.pushInstruction(InstructionTag.STORE, varState.address);
+                
+                // Mark source as moved - THIS IS THE KEY LINE
+                sourceState.state = BorrowState.Moved;
+                console.log(`[COMPILE] Marked ${sourceVar} as MOVED (state=${BorrowState[sourceState.state]})`);
+                
+                return 0;
+            }
+        }
+        
+        // Regular initialization (not a move)
+        this.visit(expr);
+        this.vm.pushInstruction(InstructionTag.STORE, varState.address);
+    }
+    
+    return 0;
+}
 
     // Visit a parse tree produced by RustParser#standardAssignment
     visitStandardAssignment(ctx: rp.StandardAssignmentContext): number {
@@ -1232,10 +1279,14 @@ visitIdentifier(ctx: rp.IdentifierContext): number {
         throw new Error(`Variable ${name} is not declared`);
     }
     
-    // Check if the variable has been moved (only matters for non-primitive types)
-    if (state.state === BorrowState.Moved && !this.isCopyType(state.typeInfo.baseType)) {
-        throw new OwnershipError(`Cannot use ${name} after it has been moved`);
+    // Verify the variable hasn't been moved
+    console.log(`[DEBUG] Using variable ${name}, state=${BorrowState[state.state]}`);
+    if (state.state === BorrowState.Moved) {
+        throw new OwnershipError(`Use of moved value: ${name}`);
     }
+    
+    // Check borrowing rules
+    this.checkReadAccess(name);
     
     // Load the value
     this.vm.pushInstruction(InstructionTag.LOAD, state.address);
