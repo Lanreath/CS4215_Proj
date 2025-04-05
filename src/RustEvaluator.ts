@@ -50,16 +50,15 @@ export class TypeInfo {
     refTarget?: string;  // For references, the name of the target variable
     isReference: boolean;
     isMutable: boolean;
-    hasCopyTrait: boolean
+    hasCopyTrait: boolean;
 
     constructor(baseType: Type, refTarget?: string, isReference: boolean = false, isMutable: boolean = false) {
         this.baseType = baseType;
         this.refTarget = refTarget;
-        this.baseType = baseType;
         this.isReference = isReference;
         this.isMutable = isMutable;
         
-        this.hasCopyTrait = false;
+                this.hasCopyTrait = false;
     }
     
     static fromTypeContext(ctx: rp.TypeContext): TypeInfo {
@@ -67,9 +66,10 @@ export class TypeInfo {
         const isMutable = isRef && ctx._mutFlag ? true : false;
         
         if (isRef) {
-            return new TypeInfo(isMutable ? Type.REF_MUT : Type.REF);
+            // Create a reference type
+            return new TypeInfo(isMutable ? Type.REF_MUT : Type.REF, undefined, true, isMutable);
         } else {
-            // Extract basic type from context
+            // Create a basic type
             const typeName = ctx.getText();
             if (typeName === "i64") {
                 return new TypeInfo(Type.I64);
@@ -82,11 +82,11 @@ export class TypeInfo {
     }
     
     toString(): string {
-        if (this.baseType === Type.REF || this.baseType === Type.REF_MUT) {
-            const mutPrefix = this.baseType === Type.REF_MUT ? "mut " : "";
-            return `&${mutPrefix}${this.refTarget || "unknown"}`;
+        if (this.isReference) {
+            const mutPrefix = this.isMutable ? "mut " : "";
+            return `&${mutPrefix}${this.refTarget || this.baseType}`;
         }
-        return this.baseType;
+        return this.baseType.toString();
     }
 }
 
@@ -185,7 +185,7 @@ export class RustEvaluatorVisitor
     }
 
     // Lookup a variable across all scopes (inner to outer)
-    private lookupVariable(name: string): VariableState | undefined {
+    public lookupVariable(name: string): VariableState | undefined {
         // Check each scope from innermost to outermost
         for (let i = this.scopes.length - 1; i >= 0; i--) {
             const scope = this.scopes[i];
@@ -403,24 +403,24 @@ export class RustEvaluatorVisitor
 
     // Access checks
     private checkReadAccess(varName: string): void {
+        console.log(`[COMPILE] Checking read access for ${varName}`);
         const state = this.lookupVariable(varName);
-
+    
         if (!state) {
             throw new OwnershipError(`Variable ${varName} not declared`);
         }
-
+    
+        // First check ownership - has it been moved?
         if (state.state === BorrowState.Moved) {
             throw new OwnershipError(`Cannot use ${varName} after it has been moved`);
         }
-
-        if (
-            state.state === BorrowState.BorrowedMutably &&
-            !this.referenceMap.has(varName)
-        ) {
-            throw new BorrowError(
-                `Cannot read ${varName} while it is mutably borrowed`
-            );
+    
+        // Then check borrowing rules
+        if (state.state === BorrowState.BorrowedMutably && !this.referenceMap.has(varName)) {
+            throw new BorrowError(`Cannot read ${varName} while it is mutably borrowed`);
         }
+    
+        console.log(`[COMPILE] Variable ${varName} has read access, state=${BorrowState[state.state]}`);
     }
 
     private checkWriteAccess(varName: string): void {
@@ -466,61 +466,76 @@ export class RustEvaluatorVisitor
     }
 
     private getExpressionType(expr: rp.ExpressionContext): Type {
-        if (expr instanceof rp.IntContext) {
-            return Type.I64;
-        } else if (expr instanceof rp.BoolContext) {
-            return Type.BOOL;
-        } else if (expr instanceof rp.LogicalNotOpContext || 
-                   expr instanceof rp.LogicalAndOpContext || 
-                   expr instanceof rp.LogicalOrOpContext) {
-            return Type.BOOL;
-        } else if (expr instanceof rp.EqualityOpContext) {
-            // All equality operations return boolean
-            return Type.BOOL;
-        } else if (expr instanceof rp.AddSubOpContext || 
-                   expr instanceof rp.MulDivOpContext || 
-                   expr instanceof rp.UnaryOpContext) {
-            return Type.I64;
-        } else if (expr instanceof rp.ParenExprContext) {
-            return this.getExpressionType(expr.expression());
-        } else if (expr instanceof rp.IdentifierContext) {
-            // Check if the variable is defined
-            const varName = expr.getText();
-            const state = this.lookupVariable(varName);
-            if (state) {
-                return state.typeInfo.baseType;
-            } else {
-                throw new Error(`Undefined variable: ${varName}`);
-            }
-        } else if (expr instanceof rp.FunctionCallContext) {
-            // Check if the function is defined
-            const funcName = expr.IDENTIFIER().getText();
-            const funcDef = this.functionDefinitions.get(funcName);
-            if (funcDef) {
-                return funcDef.declaredReturnType;
-            } else {
-                throw new Error(`Undefined function: ${funcName}`);
-            }
-        } else if (expr instanceof rp.ReferenceExprContext) {
-            // References maintain the base type but wrap it
-            return Type.REF;
-        } else if (expr instanceof rp.DereferenceExprContext) {
-            // Unwrap the reference type
-            if (expr._target instanceof rp.IdentifierContext) {
-                const refName = expr._target.getText();
-                const targetName = this.referenceMap.get(refName);
-                if (targetName) {
-                    const targetState = this.lookupVariable(targetName);
-                    if (targetState) {
-                        return targetState.typeInfo.baseType;
-                    }
-                }
-            }
-            return Type.I64; // Default if we can't determine
-        } else {
-            throw new Error('Unsupported expression type');
+    if (expr instanceof rp.IntContext) {
+        return Type.I64;
+    } else if (expr instanceof rp.BoolContext) {
+        return Type.BOOL;
+    } else if (expr instanceof rp.LogicalNotOpContext || 
+               expr instanceof rp.LogicalAndOpContext || 
+               expr instanceof rp.LogicalOrOpContext) {
+        return Type.BOOL;
+    } else if (expr instanceof rp.EqualityOpContext) {
+        return Type.BOOL;
+    } else if (expr instanceof rp.AddSubOpContext || 
+               expr instanceof rp.MulDivOpContext || 
+               expr instanceof rp.UnaryOpContext) {
+        return Type.I64;
+    } else if (expr instanceof rp.ParenExprContext) {
+        return this.getExpressionType(expr.expression());
+    } else if (expr instanceof rp.IdentifierContext) {
+        const varName = expr.getText();
+        const state = this.lookupVariable(varName);
+        
+        if (!state) {
+            throw new Error(`Variable ${varName} is not defined`);
         }
+        
+        console.log(`[TYPE CHECK] Variable ${varName} has type ${state.typeInfo.baseType}`);
+        return state.typeInfo.baseType;
+    } else if (expr instanceof rp.FunctionCallContext) {
+        const funcName = expr.IDENTIFIER().getText();
+        const funcDef = this.functionDefinitions.get(funcName);
+        
+        if (!funcDef) {
+            throw new Error(`Function ${funcName} is not defined`);
+        }
+        
+        return funcDef.declaredReturnType;
+    } else if (expr instanceof rp.ReferenceExprContext) {
+        const targetExpr = expr._target;
+        const targetType = this.getExpressionType(targetExpr);
+        return expr._mutFlag ? Type.REF_MUT : Type.REF;
+    } else if (expr instanceof rp.DereferenceExprContext) {
+        // Get the underlying type for dereferenced expressions
+        const targetExpr = expr._target;
+        
+        if (targetExpr instanceof rp.IdentifierContext) {
+            const refName = targetExpr.getText();
+            const refState = this.lookupVariable(refName);
+            
+            if (!refState) {
+                throw new Error(`Variable ${refName} is not defined`);
+            }
+            
+            if (refState.typeInfo.baseType !== Type.REF && refState.typeInfo.baseType !== Type.REF_MUT) {
+                throw new Error(`Cannot dereference non-reference variable: ${refName}`);
+            }
+            
+            // Look up the target variable to get its type
+            const targetName = this.referenceMap.get(refName);
+            if (!targetName) {
+                throw new Error(`Reference ${refName} does not point to a valid variable`);
+            }
+            
+            const targetState = this.lookupVariable(targetName);
+            return targetState.typeInfo.baseType;
+        }
+        
+        return Type.I64; // Default for other cases
+    } else {
+        throw new Error(`Unsupported expression type: ${expr.constructor.name}`);
     }
+}
 
     // Virtual machine interaction
     public runVM(): number {
@@ -621,7 +636,7 @@ export class RustEvaluatorVisitor
     if (ctx.type()) {
         typeInfo = TypeInfo.fromTypeContext(ctx.type());
     } else {
-        typeInfo = new TypeInfo(Type.I64); // Default type
+        typeInfo = new TypeInfo(Type.I64);
     }
     
     console.log(`[COMPILE] Declaring variable: ${varName}, mutable: ${isMutable}, type: ${typeInfo.toString()}`);
@@ -645,19 +660,18 @@ export class RustEvaluatorVisitor
     if (ctx.expression()) {
         const expr = ctx.expression();
         
-        // Debug the expression type
-        console.log(`[DEBUG] Expression type: ${expr.constructor.name}`);
+        // Check type compatibility
+        const initType = this.getExpressionType(expr);
+        if (!this.checkTypeCompatibility(new TypeInfo(initType), typeInfo)) {
+            throw new Error(`Type mismatch: cannot initialize ${varName}: ${typeInfo.toString()} with value of type ${initType}`);
+        }
         
-        // Check if this is a variable-to-variable assignment (should use instanceof)
-        if (expr instanceof rp.IdentifierContext) {
+        // Check if it's a variable-to-variable assignment (potential move)
+        if (expr.constructor.name === 'IdentifierContext') {
             const sourceVar = expr.getText();
-            console.log(`[DEBUG] Source variable: ${sourceVar}`);
             const sourceState = this.lookupVariable(sourceVar);
             
-            if (sourceState) {
-                console.log(`[COMPILE] Variable-to-variable assignment from ${sourceVar} to ${varName}`);
-                
-                // For ALL types, enforce move semantics (hasCopyTrait is false)
+            if (sourceState && !sourceState.typeInfo.hasCopyTrait) {
                 console.log(`[COMPILE] Moving ${sourceVar} to ${varName}`);
                 
                 // Check if the source has been moved
@@ -676,15 +690,15 @@ export class RustEvaluatorVisitor
                 // Store to destination variable
                 this.vm.pushInstruction(InstructionTag.STORE, varState.address);
                 
-                // Mark source as moved - THIS IS THE KEY LINE
+                // Mark source as moved
                 sourceState.state = BorrowState.Moved;
-                console.log(`[COMPILE] Marked ${sourceVar} as MOVED (state=${BorrowState[sourceState.state]})`);
+                console.log(`[COMPILE] Marked ${sourceVar} as moved (state=${BorrowState[sourceState.state]})`);
                 
                 return 0;
             }
         }
         
-        // Regular initialization (not a move)
+        // Regular initialization (not a move or Copy type)
         this.visit(expr);
         this.vm.pushInstruction(InstructionTag.STORE, varState.address);
     }
@@ -693,49 +707,62 @@ export class RustEvaluatorVisitor
 }
 
     // Visit a parse tree produced by RustParser#standardAssignment
-    visitStandardAssignment(ctx: rp.StandardAssignmentContext): number {
-        const target = ctx.IDENTIFIER().getText();
-        console.log(`[COMPILE] Assignment to: ${target}`);
+visitStandardAssignment(ctx: rp.StandardAssignmentContext): number {
+    const target = ctx.IDENTIFIER().getText();
+    console.log(`[COMPILE] Assignment to: ${target}`);
 
-        // Check if the variable exists and is mutable
-        const targetState = this.lookupVariable(target);
-        if (!targetState) {
-            throw new Error(`Cannot assign to undefined variable: ${target}`);
-        }
-
-        this.checkWriteAccess(target);
-
-        // Check if the expression is a variable (potential move)
-        if (ctx.expression() instanceof rp.IdentifierContext) {
-            const sourceVar = ctx.expression().getText();
-            const sourceState = this.lookupVariable(sourceVar);
-            
-            if (sourceState) {
-                // Determine if this is a primitive type (copy semantics) or a move
-                const isCopyType = 
-                    sourceState.typeInfo.baseType === Type.I64 || 
-                    sourceState.typeInfo.baseType === Type.BOOL;
-                
-                if (isCopyType) {
-                    // For primitive types (i64, bool) - just copy the value
-                    console.log(`[COPY] Copying value from ${sourceVar} to ${target}`);
-                    this.vm.pushInstruction(InstructionTag.LOAD, sourceState.address);
-                    this.vm.pushInstruction(InstructionTag.STORE, targetState.address);
-                } else {
-                    // For non-primitive types - apply move semantics
-                    console.log(`[MOVE] Moving value from ${sourceVar} to ${target}`);
-                    this.moveVariable(sourceVar, target, targetState.mutable);
-                }
-                return 0;
-            }
-        }
-        
-        // For expressions, evaluate and store
-        this.visit(ctx.expression());
-        this.vm.pushInstruction(InstructionTag.STORE, targetState.address);
-
-        return 0;
+    // Check if the variable exists and is mutable
+    const targetState = this.lookupVariable(target);
+    if (!targetState) {
+        throw new Error(`Cannot assign to undefined variable: ${target}`);
     }
+
+    this.checkWriteAccess(target);
+
+    // Check if this is a variable-to-variable assignment (potential move)
+    const expr = ctx.expression();
+    const exprType = this.getExpressionType(expr);
+    
+    // Type check the assignment
+    if (!this.checkTypeCompatibility(new TypeInfo(exprType), targetState.typeInfo)) {
+        throw new Error(`Type mismatch: cannot assign value of type ${exprType} to variable ${target} of type ${targetState.typeInfo.toString()}`);
+    }
+
+    // Check if this is a variable-to-variable assignment (potential move)
+    if (expr.constructor.name === 'IdentifierContext') {
+        const sourceVar = expr.getText();
+        const sourceState = this.lookupVariable(sourceVar);
+        
+        if (sourceState && !sourceState.typeInfo.hasCopyTrait) {
+            console.log(`[COMPILE] Moving ${sourceVar} to ${target}`);
+            
+            // Check if the source has been moved
+            if (sourceState.state === BorrowState.Moved) {
+                throw new OwnershipError(`Cannot use ${sourceVar} after it has been moved`);
+            }
+            
+            if (sourceState.borrowers.length > 0) {
+                throw new BorrowError(`Cannot move ${sourceVar} while it is borrowed`);
+            }
+            
+            // Load from source variable
+            this.vm.pushInstruction(InstructionTag.LOAD, sourceState.address);
+            this.vm.pushInstruction(InstructionTag.STORE, targetState.address);
+            
+            // Mark source as moved
+            sourceState.state = BorrowState.Moved;
+            console.log(`[COMPILE] Marked ${sourceVar} as MOVED (state=${BorrowState[sourceState.state]})`);
+            
+            return 0;
+        }
+    }
+    
+    // For non-variable expressions, evaluate normally
+    this.visit(expr);
+    this.vm.pushInstruction(InstructionTag.STORE, targetState.address);
+
+    return 0;
+}
 
     // Visit a parse tree produced by RustParser#referenceExpr
     visitReferenceExpr(ctx: rp.ReferenceExprContext): number {
@@ -1270,7 +1297,7 @@ export class RustEvaluatorVisitor
     }
 
     // Visit identifiers (variables)
-    // Update visitIdentifier to check for moved variables
+// Update visitIdentifier to check for moved variables
 visitIdentifier(ctx: rp.IdentifierContext): number {
     const name = ctx.getText();
     const state = this.lookupVariable(name);
@@ -1282,7 +1309,7 @@ visitIdentifier(ctx: rp.IdentifierContext): number {
     // Verify the variable hasn't been moved
     console.log(`[DEBUG] Using variable ${name}, state=${BorrowState[state.state]}`);
     if (state.state === BorrowState.Moved) {
-        throw new OwnershipError(`Use of moved value: ${name}`);
+                throw new OwnershipError(`Use of moved value: ${name}`);
     }
     
     // Check borrowing rules
@@ -1370,11 +1397,22 @@ visitIdentifier(ctx: rp.IdentifierContext): number {
     }
 
     private checkTypeCompatibility(actual: TypeInfo, expected: TypeInfo): boolean {
+        console.log(`[TYPE CHECK] Checking compatibility between ${actual.toString()} and ${expected.toString()}`);
+        
         // Basic case: exact type match
         if (actual.baseType === expected.baseType) {
             return true;
         }
-
+    
+        // Special case for literals
+        if (actual.baseType === Type.I64 && expected.baseType === Type.I64) {
+            return true;
+        }
+        
+        if (actual.baseType === Type.BOOL && expected.baseType === Type.BOOL) {
+            return true;
+        }
+    
         // Reference compatibility rules
         if ((actual.baseType === Type.REF || actual.baseType === Type.REF_MUT) &&
             (expected.baseType === Type.REF || expected.baseType === Type.REF_MUT)) {
@@ -1394,12 +1432,8 @@ visitIdentifier(ctx: rp.IdentifierContext): number {
                 return true;
             }
         }
-
-        // Boolean compatibility
-        if (actual.baseType === Type.BOOL && expected.baseType === Type.BOOL) {
-            return true;
-        }
-
+    
+        console.log(`[TYPE CHECK] Types are not compatible`);
         return false;
     }
 
@@ -1568,22 +1602,23 @@ visitIdentifier(ctx: rp.IdentifierContext): number {
 
 export class RustEvaluator extends BasicEvaluator {
     private executionCount: number;
-    private visitor: RustEvaluatorVisitor;
 
     constructor(conductor: IRunnerPlugin) {
         super(conductor);
         this.executionCount = 0;
-        this.visitor = new RustEvaluatorVisitor();
     }
 
-        async evaluateChunk(chunk: string): Promise<void> {
+    async evaluateChunk(chunk: string): Promise<void> {
         this.executionCount++;
         try {
-            // Reset the visitor for each new chunk
             const vm = new VirtualMachine();
-            this.visitor = new RustEvaluatorVisitor(vm);
-            this.visitor.reset();
-            // Create the lexer and parser
+            const visitor = new RustEvaluatorVisitor(vm); // Local variable not class field!
+            
+            // Reset all state
+            vm.reset();
+            visitor.reset();
+            
+            // Create parser and process input
             const inputStream = CharStream.fromString(chunk);
             const lexer = new RustLexer(inputStream);
             const tokenStream = new CommonTokenStream(lexer);
@@ -1593,9 +1628,7 @@ export class RustEvaluator extends BasicEvaluator {
             const tree = parser.prog();
 
             // COMPILATION PHASE: Generate VM instructions
-            this.visitor.visit(tree);
-
-            // Mark the end of the program
+            visitor.visit(tree);
             vm.pushInstruction(InstructionTag.DONE);
 
             // Check for a final standalone variable reference
@@ -1605,22 +1638,27 @@ export class RustEvaluator extends BasicEvaluator {
             if (varMatch) {
                 const varName = varMatch[1];
                 console.log(`[EVALUATOR] Final expression is variable: ${varName}`);
-                const varState = this.visitor.getVariableStates().get(varName);
+                const varState = visitor.lookupVariable(varName);
                 if (varState) {
-                    // Manually add instruction to load this variable
                     vm.pushInstruction(InstructionTag.LOAD, varState.address);
                 }
             }
 
+            // Print instructions for debugging
+            vm.printInstructions();
+
             // EXECUTION PHASE: Run the VM code
-            console.log(`[EVALUATOR] Running compiled code...`);
+            console.log("[EVALUATOR] Running compiled code...");
             const result = vm.run();
 
             // Send the result to the REPL
-            this.conductor.sendOutput(`Output: ${result}`);
+            this.conductor.sendOutput(`Result: ${result}`);
+            
+            console.log("[EVALUATOR] ======== EVALUATION COMPLETE ========");
         } catch (error) {
             if (error instanceof Error) {
                 this.conductor.sendOutput(`Error: ${error.message}`);
+                console.error(error.stack);
             } else {
                 this.conductor.sendOutput(`Error: ${String(error)}`);
             }
