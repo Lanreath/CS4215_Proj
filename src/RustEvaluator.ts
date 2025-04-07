@@ -167,25 +167,33 @@ export class RustEvaluatorVisitor
             return;
         }
 
-        const currentScope = this.scopes.pop();
-        console.log(
-            `[DEBUG] Exiting scope. Variables in scope: ${Array.from(
-                currentScope?.keys() || []
-            ).join(", ")}`
-        );
+        // Get the current scope before removing it
+        const currentScope = this.scopes[this.scopes.length - 1];
+        
+        // Pop it from the stack
+        this.scopes.pop();
+        
+        console.log(`[DEBUG] Exiting scope with variables: ${Array.from(currentScope.keys()).join(", ")}`);
 
-        // Clean up variables in this scope
-        for (const [name, _] of currentScope || []) {
-            // If this is a reference, release the borrow
+        // Clean up ALL variables in this scope
+        for (const name of currentScope.keys()) {
+            console.log(`[DEBUG] Cleaning up variable: ${name}`);
+            
+            // Handle references
             if (this.referenceMap.has(name)) {
                 this.releaseBorrow(name);
                 this.referenceMap.delete(name);
             }
+            
+            // Get the state
             const state = this.variableStates.get(name);
-
-            // Remove the variable state and address
-            this.variableStates.delete(name);
-            this.vm.pushInstruction(InstructionTag.FREE, state.address);
+            if (state) {
+                // Free memory
+                this.vm.pushInstruction(InstructionTag.FREE, state.address);
+                // IMPORTANT: Remove from variable tracking
+                this.variableStates.delete(name);
+                console.log(`[DEBUG] Deleted variable: ${name}`);
+            }
         }
     }
 
@@ -593,12 +601,14 @@ export class RustEvaluatorVisitor
      * Reset all state for a new evaluation
      */
     public reset(): void {
+        this.releaseAllResources();
         // Clear variable tracking
         this.variableStates = new Map();
         this.referenceMap = new Map();
 
         // Reset scopes
-        this.scopes = [new Map()];
+        this.scopes = [];
+        this.scopes.push(new Map());
 
         // Reset function tracking
         this.functionDefinitions = new Map();
@@ -667,7 +677,17 @@ export class RustEvaluatorVisitor
         throw new Error(`Variable ${varName} is already defined in current scope`);
     }
     
-    // Allocate memory for the variable
+    // IMPORTANT: Check type compatibility BEFORE allocating or registering the variable
+    if (ctx.expression()) {
+        const expr = ctx.expression();
+        const initType = this.getExpressionType(expr);
+        
+        if (!this.checkTypeCompatibility(new TypeInfo(initType), typeInfo)) {
+            throw new Error(`Type mismatch: cannot initialize ${varName}: ${typeInfo.toString()} with value of type ${initType}`);
+        }
+    }
+    
+    // Only AFTER type check passes, allocate memory for the variable
     const address = this.vm.allocateVariable();
     
     // Create a variable state
@@ -720,7 +740,7 @@ export class RustEvaluatorVisitor
         }
         
         // Regular initialization (not a move or Copy type)
-        this.visit(expr);
+        this.visit(ctx.expression());
         this.vm.pushInstruction(InstructionTag.STORE, varState.address);
     }
     
@@ -1619,6 +1639,32 @@ visitIdentifier(ctx: rp.IdentifierContext): number {
         return 0;
     }
 
+    public releaseAllResources(): void {
+        console.log("[CLEANUP] Releasing all resources...");
+    
+        // Process each variable in variableStates
+        for (const [varName, state] of this.variableStates.entries()) {
+            // Check if the variable is in Owned state
+            if (state.state === BorrowState.Owned) {
+                console.log(`[CLEANUP] Releasing owned variable: ${varName}`);
+                
+                // Free the memory
+                this.vm.pushInstruction(InstructionTag.FREE, state.address);
+                
+                // Mark as released for debugging
+                state.state = BorrowState.Moved;
+            }
+            
+            // Also clean up any references
+            if (this.referenceMap.has(varName)) {
+                console.log(`[CLEANUP] Releasing reference: ${varName}`);
+                this.releaseBorrow(varName);
+            }
+        }
+    
+        console.log("[CLEANUP] All resources released");
+    }
+
 }
 
 export class RustEvaluator extends BasicEvaluator {
@@ -1677,7 +1723,9 @@ export class RustEvaluator extends BasicEvaluator {
 
             // Send the result to the REPL
             this.conductor.sendOutput(`Result: ${result}`);
-            
+            visitor.releaseAllResources();
+            visitor.variableStates = new Map();
+            visitor.scopes = [new Map()]; 
             console.log("[EVALUATOR] ======== EVALUATION COMPLETE ========");
         } catch (error) {
             if (error instanceof Error) {
