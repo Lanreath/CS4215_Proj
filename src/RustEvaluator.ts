@@ -58,7 +58,7 @@ export class TypeInfo {
         this.isReference = isReference;
         this.isMutable = isMutable;
         
-                this.hasCopyTrait = false;
+        this.hasCopyTrait = false;
     }
     
     static fromTypeContext(ctx: rp.TypeContext): TypeInfo {
@@ -126,18 +126,18 @@ export class RustEvaluatorVisitor
     extends AbstractParseTreeVisitor<number>
     implements RustVisitor<number> {
     private vm: VirtualMachine;
-    private variableStates: Map<string, VariableState>;
+    public variableStates: Map<string, VariableState>;
 
     public getVariableStates(): Map<string, VariableState> {
         return this.variableStates;
     }
-    private referenceMap: Map<string, string>; // Maps reference names to their target
+    public referenceMap: Map<string, string>; // Maps reference names to their target
     private functionDefinitions: Map<string, FunctionDefinition> = new Map();
     private lastCreatedReference: string | undefined; // Store the last created reference
     private isReturning: boolean = false;
     private currentFunctionReturnType: string | null = null;
     private loopEndLabels: string[] = [];
-    private scopes: Map<string, any>[] = [new Map()]; // Stack of scopes
+    public scopes: Map<string, any>[] = [new Map()]; // Stack of scopes
 
     // Add constructor to accept a VM instance
     constructor(vm?: VirtualMachine) {
@@ -191,13 +191,26 @@ export class RustEvaluatorVisitor
 
     // Lookup a variable across all scopes (inner to outer)
     public lookupVariable(name: string): VariableState | undefined {
+        console.log(`[DEBUG] lookupVariable('${name}') called with ${this.scopes.length} scopes`);
+        
         // Check each scope from innermost to outermost
         for (let i = this.scopes.length - 1; i >= 0; i--) {
             const scope = this.scopes[i];
             if (scope.has(name)) {
-                return this.variableStates.get(name);
+                console.log(`[DEBUG] Found '${name}' in scope ${i}`);
+                const state = this.variableStates.get(name);
+                
+                // Ensure the variable state is still valid
+                if (!state) {
+                    console.log(`[WARNING] Variable '${name}' found in scope but missing from variableStates`);
+                    return undefined;
+                }
+                
+                return state;
             }
         }
+        
+        console.log(`[DEBUG] Variable '${name}' not found in any scope`);
         return undefined;
     }
 
@@ -648,6 +661,9 @@ export class RustEvaluatorVisitor
     
     // Check if the variable is already defined in current scope
     if (this.currentScope().has(varName)) {
+        console.log(`[ERROR] Variable ${varName} already exists in current scope`);
+        console.log(`[DEBUG] All variables in current scope: ${Array.from(this.currentScope().keys()).join(', ')}`);
+        console.log(`[DEBUG] All tracked variables: ${Array.from(this.variableStates.keys()).join(', ')}`);
         throw new Error(`Variable ${varName} is already defined in current scope`);
     }
     
@@ -1603,11 +1619,6 @@ visitIdentifier(ctx: rp.IdentifierContext): number {
         return 0;
     }
 
-    // Add this to your RustEvaluatorVisitor class
-    private isCopyType(type: Type): boolean {
-        // In Rust, primitive types like i64, bool have copy semantics
-        return type === Type.I64 || type === Type.BOOL;
-    }
 }
 
 export class RustEvaluator extends BasicEvaluator {
