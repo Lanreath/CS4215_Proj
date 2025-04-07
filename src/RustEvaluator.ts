@@ -145,7 +145,12 @@ export class RustEvaluatorVisitor
         this.vm = vm || new VirtualMachine();
         this.variableStates = new Map<string, VariableState>();
         this.referenceMap = new Map<string, string>();
+        this.functionDefinitions = new Map();
         this.scopes = [new Map()];
+        this.currentFunctionReturnType = null;
+        this.isReturning = false;
+        this.loopEndLabels = [];
+        this.lastCreatedReference = null;
     }
 
     private enterScope(): void {
@@ -667,7 +672,7 @@ export class RustEvaluatorVisitor
         }
         
         // Check if it's a variable-to-variable assignment (potential move)
-        if (expr.constructor.name === 'IdentifierContext') {
+        if (expr instanceof rp.IdentifierContext) {
             const sourceVar = expr.getText();
             const sourceState = this.lookupVariable(sourceVar);
             
@@ -729,7 +734,7 @@ visitStandardAssignment(ctx: rp.StandardAssignmentContext): number {
     }
 
     // Check if this is a variable-to-variable assignment (potential move)
-    if (expr.constructor.name === 'IdentifierContext') {
+    if (expr instanceof rp.IdentifierContext) {
         const sourceVar = expr.getText();
         const sourceState = this.lookupVariable(sourceVar);
         
@@ -1285,6 +1290,11 @@ visitStandardAssignment(ctx: rp.StandardAssignmentContext): number {
         return 0;
     }
     private currentScope(): Map<string, any> {
+        // Add safety check to ensure scopes array is never empty
+        if (this.scopes.length === 0) {
+            console.log("[WARNING] No scopes available, creating a new global scope");
+            this.scopes.push(new Map());
+        }
         return this.scopes[this.scopes.length - 1];
     }
 
@@ -1608,16 +1618,19 @@ export class RustEvaluator extends BasicEvaluator {
         this.executionCount = 0;
     }
 
-    async evaluateChunk(chunk: string): Promise<void> {
+        async evaluateChunk(chunk: string): Promise<void> {
         this.executionCount++;
         try {
+            //console.log("[EVALUATOR] ======== STARTING NEW EVALUATION #" + this.executionCount + " ========");
+            
+            // Create completely new instances for each evaluation
             const vm = new VirtualMachine();
-            const visitor = new RustEvaluatorVisitor(vm); // Local variable not class field!
+            const visitor = new RustEvaluatorVisitor(vm);
             
             // Reset all state
             vm.reset();
             visitor.reset();
-            
+                        
             // Create parser and process input
             const inputStream = CharStream.fromString(chunk);
             const lexer = new RustLexer(inputStream);

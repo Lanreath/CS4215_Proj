@@ -673,12 +673,15 @@ export class VirtualMachine {
         this.pc = 0;
         this.osPtr = VirtualMachine.OS_BASE;
         this.instructions = [];
+        this.labels = new Map();
+        this.forwardRefs = new Map();
         this.rsPtr = VirtualMachine.RS_BASE;
 
         // Clear memory
         this.memory = new ArrayBuffer(this.memSize);
         this.view = new DataView(this.memory);
         this.returnStack = [];
+        this.valueTypes = new Map();
         console.log("[VM] VM state reset");
     }
 
