@@ -1,0 +1,102 @@
+let x: i64 = 10;
+x;
+```
+let x: bool = true;
+x;
+```
+let x: i64 = 5 + 3;
+x;
+```
+let y: bool = false || true;
+y;
+
+```
+let z: i64 = 6 - 2 * 3;
+z;
+```
+fn square(n: i64) -> i64 { n * n }
+square(4);
+```
+fn negate(b: bool) -> bool { !b }
+negate(false);
+```
+fn add(x: i64, y: i64) -> i64 { x + y }
+add(3, 4);
+```
+fn identity(x: i64) -> i64 { x }
+identity(42);
+```
+fn always_true() -> bool { true }
+always_true();
+```
+fn abs(x: i64) -> i64 {
+    if x < 0 { -x } else { x }
+}
+abs(-10);
+```
+let mut x: i64 = 0;
+while x < 5 {
+    x = x + 1;
+}
+x;
+```
+fn count_to_n(n: i64) -> i64 {
+    let mut x: i64 = 0;
+    while x < n {
+        x = x + 1;
+    }
+    x
+}
+count_to_n(10);
+```
+fn f(x: &i64) { }
+let y: i64 = 7;
+f(&y);
+```
+fn move_value(x: i64) -> i64 { x }
+let z: i64 = 9;
+move_value(z);
+```
+fn f(x: &i64) -> i64 { *x }
+let y: i64 = 3;
+f(&y);
+```
+fn f(x: &mut i64) {
+    *x = 42;
+}
+let mut z: i64 = 0;
+f(&mut z);
+z;
+```
+fn outer(x: i64) -> i64 {
+    fn inner(y: i64) -> i64 { y + 1 }
+    inner(x)
+}
+outer(5);
+```
+fn f(x: i64) -> i64 {
+    if x == 0 { 1 } else { x * f(x - 1) }
+}
+f(5);
+```
+fn f() -> i64 { 2 }
+fn g() -> i64 { 3 }
+fn h(x: i64, y: i64)-> i64 { x * y}
+h(f(), g());
+```
+fn apply(f: fn(i64) -> i64, x: i64) -> i64 {
+    f(x)
+}
+
+fn square(x: i64) -> i64 { x * x }
+
+apply(square, 5); // Output: 25
+
+```
+fn apply_twice(f: fn(i64) -> i64, x: i64) -> i64 {
+    f(f(x))
+}
+
+fn square(x: i64) -> i64 { x * x }
+apply_twice(square, true);
+```
