@@ -16,7 +16,7 @@ export enum Type {
     REF = "ref",
     REF_MUT = "ref_mut",
     VOID = "void",
-    ERORR = "error",
+    ERROR = "error",
 }
 
 // Enhanced borrow states
@@ -133,7 +133,6 @@ export class RustEvaluatorVisitor
     }
     public referenceMap: Map<string, string>; // Maps reference names to their target
     private functionDefinitions: Map<string, FunctionDefinition> = new Map();
-    private lastCreatedReference: string | undefined; // Store the last created reference
     private isReturning: boolean = false;
     private currentFunctionReturnType: string | null = null;
     private loopEndLabels: string[] = [];
@@ -150,7 +149,6 @@ export class RustEvaluatorVisitor
         this.currentFunctionReturnType = null;
         this.isReturning = false;
         this.loopEndLabels = [];
-        this.lastCreatedReference = null;
     }
 
     private enterScope(): void {
@@ -618,7 +616,6 @@ export class RustEvaluatorVisitor
         this.isReturning = false;
 
         // Reset reference tracking
-        this.lastCreatedReference = null;
         this.loopEndLabels = [];
         
         console.log("[EVALUATOR] State reset complete");
@@ -826,7 +823,6 @@ visitStandardAssignment(ctx: rp.StandardAssignmentContext): number {
         
         // Create a unique name for the reference
         const refName = `ref_to_${target}_${Date.now()}`;
-        this.lastCreatedReference = refName;
         
         // Store the reference in memory
         // IMPORTANT: Store the ADDRESS of the variable, not its valueget's address

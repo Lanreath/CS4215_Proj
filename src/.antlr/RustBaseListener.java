@@ -196,6 +196,18 @@ public class RustBaseListener implements RustListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterBool(RustParser.BoolContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitBool(RustParser.BoolContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterDereferenceExpr(RustParser.DereferenceExprContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -232,18 +244,6 @@ public class RustBaseListener implements RustListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterFunctionCall(RustParser.FunctionCallContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitFunctionCall(RustParser.FunctionCallContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
 	@Override public void enterUnaryOp(RustParser.UnaryOpContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -251,30 +251,6 @@ public class RustBaseListener implements RustListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitUnaryOp(RustParser.UnaryOpContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void enterMulDivOp(RustParser.MulDivOpContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitMulDivOp(RustParser.MulDivOpContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void enterParenExpr(RustParser.ParenExprContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitParenExpr(RustParser.ParenExprContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -292,6 +268,18 @@ public class RustBaseListener implements RustListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterParenExpr(RustParser.ParenExprContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitParenExpr(RustParser.ParenExprContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterAddSubOp(RustParser.AddSubOpContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -299,6 +287,66 @@ public class RustBaseListener implements RustListener {
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitAddSubOp(RustParser.AddSubOpContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterLogicalAndOp(RustParser.LogicalAndOpContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitLogicalAndOp(RustParser.LogicalAndOpContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterLogicalOrOp(RustParser.LogicalOrOpContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitLogicalOrOp(RustParser.LogicalOrOpContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterFunctionCall(RustParser.FunctionCallContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitFunctionCall(RustParser.FunctionCallContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterMulDivOp(RustParser.MulDivOpContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitMulDivOp(RustParser.MulDivOpContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterLogicalNotOp(RustParser.LogicalNotOpContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitLogicalNotOp(RustParser.LogicalNotOpContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -316,25 +364,13 @@ public class RustBaseListener implements RustListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterIntegerType(RustParser.IntegerTypeContext ctx) { }
+	@Override public void enterType(RustParser.TypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitIntegerType(RustParser.IntegerTypeContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void enterReferenceType(RustParser.ReferenceTypeContext ctx) { }
-	/**
-	 * {@inheritDoc}
-	 *
-	 * <p>The default implementation does nothing.</p>
-	 */
-	@Override public void exitReferenceType(RustParser.ReferenceTypeContext ctx) { }
+	@Override public void exitType(RustParser.TypeContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
