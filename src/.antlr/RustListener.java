@@ -163,6 +163,18 @@ public interface RustListener extends ParseTreeListener {
 	 */
 	void exitIdentifier(RustParser.IdentifierContext ctx);
 	/**
+	 * Enter a parse tree produced by the {@code bool}
+	 * labeled alternative in {@link RustParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterBool(RustParser.BoolContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code bool}
+	 * labeled alternative in {@link RustParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitBool(RustParser.BoolContext ctx);
+	/**
 	 * Enter a parse tree produced by the {@code dereferenceExpr}
 	 * labeled alternative in {@link RustParser#expression}.
 	 * @param ctx the parse tree
@@ -199,18 +211,6 @@ public interface RustListener extends ParseTreeListener {
 	 */
 	void exitEqualityOp(RustParser.EqualityOpContext ctx);
 	/**
-	 * Enter a parse tree produced by the {@code functionCall}
-	 * labeled alternative in {@link RustParser#expression}.
-	 * @param ctx the parse tree
-	 */
-	void enterFunctionCall(RustParser.FunctionCallContext ctx);
-	/**
-	 * Exit a parse tree produced by the {@code functionCall}
-	 * labeled alternative in {@link RustParser#expression}.
-	 * @param ctx the parse tree
-	 */
-	void exitFunctionCall(RustParser.FunctionCallContext ctx);
-	/**
 	 * Enter a parse tree produced by the {@code unaryOp}
 	 * labeled alternative in {@link RustParser#expression}.
 	 * @param ctx the parse tree
@@ -222,30 +222,6 @@ public interface RustListener extends ParseTreeListener {
 	 * @param ctx the parse tree
 	 */
 	void exitUnaryOp(RustParser.UnaryOpContext ctx);
-	/**
-	 * Enter a parse tree produced by the {@code mulDivOp}
-	 * labeled alternative in {@link RustParser#expression}.
-	 * @param ctx the parse tree
-	 */
-	void enterMulDivOp(RustParser.MulDivOpContext ctx);
-	/**
-	 * Exit a parse tree produced by the {@code mulDivOp}
-	 * labeled alternative in {@link RustParser#expression}.
-	 * @param ctx the parse tree
-	 */
-	void exitMulDivOp(RustParser.MulDivOpContext ctx);
-	/**
-	 * Enter a parse tree produced by the {@code parenExpr}
-	 * labeled alternative in {@link RustParser#expression}.
-	 * @param ctx the parse tree
-	 */
-	void enterParenExpr(RustParser.ParenExprContext ctx);
-	/**
-	 * Exit a parse tree produced by the {@code parenExpr}
-	 * labeled alternative in {@link RustParser#expression}.
-	 * @param ctx the parse tree
-	 */
-	void exitParenExpr(RustParser.ParenExprContext ctx);
 	/**
 	 * Enter a parse tree produced by the {@code int}
 	 * labeled alternative in {@link RustParser#expression}.
@@ -259,6 +235,18 @@ public interface RustListener extends ParseTreeListener {
 	 */
 	void exitInt(RustParser.IntContext ctx);
 	/**
+	 * Enter a parse tree produced by the {@code parenExpr}
+	 * labeled alternative in {@link RustParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterParenExpr(RustParser.ParenExprContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code parenExpr}
+	 * labeled alternative in {@link RustParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitParenExpr(RustParser.ParenExprContext ctx);
+	/**
 	 * Enter a parse tree produced by the {@code addSubOp}
 	 * labeled alternative in {@link RustParser#expression}.
 	 * @param ctx the parse tree
@@ -271,6 +259,66 @@ public interface RustListener extends ParseTreeListener {
 	 */
 	void exitAddSubOp(RustParser.AddSubOpContext ctx);
 	/**
+	 * Enter a parse tree produced by the {@code logicalAndOp}
+	 * labeled alternative in {@link RustParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterLogicalAndOp(RustParser.LogicalAndOpContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code logicalAndOp}
+	 * labeled alternative in {@link RustParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitLogicalAndOp(RustParser.LogicalAndOpContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code logicalOrOp}
+	 * labeled alternative in {@link RustParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterLogicalOrOp(RustParser.LogicalOrOpContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code logicalOrOp}
+	 * labeled alternative in {@link RustParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitLogicalOrOp(RustParser.LogicalOrOpContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code functionCall}
+	 * labeled alternative in {@link RustParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterFunctionCall(RustParser.FunctionCallContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code functionCall}
+	 * labeled alternative in {@link RustParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitFunctionCall(RustParser.FunctionCallContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code mulDivOp}
+	 * labeled alternative in {@link RustParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterMulDivOp(RustParser.MulDivOpContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code mulDivOp}
+	 * labeled alternative in {@link RustParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitMulDivOp(RustParser.MulDivOpContext ctx);
+	/**
+	 * Enter a parse tree produced by the {@code logicalNotOp}
+	 * labeled alternative in {@link RustParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void enterLogicalNotOp(RustParser.LogicalNotOpContext ctx);
+	/**
+	 * Exit a parse tree produced by the {@code logicalNotOp}
+	 * labeled alternative in {@link RustParser#expression}.
+	 * @param ctx the parse tree
+	 */
+	void exitLogicalNotOp(RustParser.LogicalNotOpContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link RustParser#argList}.
 	 * @param ctx the parse tree
 	 */
@@ -281,29 +329,15 @@ public interface RustListener extends ParseTreeListener {
 	 */
 	void exitArgList(RustParser.ArgListContext ctx);
 	/**
-	 * Enter a parse tree produced by the {@code integerType}
-	 * labeled alternative in {@link RustParser#type}.
+	 * Enter a parse tree produced by {@link RustParser#type}.
 	 * @param ctx the parse tree
 	 */
-	void enterIntegerType(RustParser.IntegerTypeContext ctx);
+	void enterType(RustParser.TypeContext ctx);
 	/**
-	 * Exit a parse tree produced by the {@code integerType}
-	 * labeled alternative in {@link RustParser#type}.
+	 * Exit a parse tree produced by {@link RustParser#type}.
 	 * @param ctx the parse tree
 	 */
-	void exitIntegerType(RustParser.IntegerTypeContext ctx);
-	/**
-	 * Enter a parse tree produced by the {@code referenceType}
-	 * labeled alternative in {@link RustParser#type}.
-	 * @param ctx the parse tree
-	 */
-	void enterReferenceType(RustParser.ReferenceTypeContext ctx);
-	/**
-	 * Exit a parse tree produced by the {@code referenceType}
-	 * labeled alternative in {@link RustParser#type}.
-	 * @param ctx the parse tree
-	 */
-	void exitReferenceType(RustParser.ReferenceTypeContext ctx);
+	void exitType(RustParser.TypeContext ctx);
 	/**
 	 * Enter a parse tree produced by {@link RustParser#breakStatement}.
 	 * @param ctx the parse tree

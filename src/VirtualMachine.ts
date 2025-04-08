@@ -15,11 +15,16 @@ export enum InstructionTag {
     JOF = "JOF",
     LOAD = "LOAD",
     STORE = "STORE",
-    LOADADDR = "LOADADDR",
     FETCH = "FETCH",
     FREE = "FREE",
     CALL = "CALL",
     RETURN = "RETURN",
+    NEG = "NEG",                   // Negate a value
+    AND = "AND",                   // Logical AND
+    OR = "OR",                     // Logical OR
+    NOT = "NOT",                   // Logical NOT
+    DUP = "DUP",                   // Duplicate the top value on the stack
+    POP = "POP",                   // Pop the top value from the stack
 }
 export class Instruction {
     public tag: InstructionTag;
@@ -60,8 +65,9 @@ export class VirtualMachine {
     private instructions: Instruction[] = [];
     private pc: number = 0; // Program counter
     private osPtr: number = 0; // Operand stack pointer
-    private rtPtr: number = 0; // Return stack pointer
     private rsPtr: number = 0; // Runtime stack pointer
+
+    private returnStack: number[] = [];
 
     constructor(memSize: number = 4096) {
         // Ensure this is large enough
@@ -90,24 +96,29 @@ export class VirtualMachine {
         return value;
     }
 
-    private pushReturn(value: number): void {
-        const addr = VirtualMachine.RT_BASE + this.rtPtr * 4;
-        if (addr >= VirtualMachine.RS_BASE) {
-            throw new Error("Return stack overflow");
+    private peekOperand(): number {
+        if (this.osPtr <= 0) {
+            throw new Error("Operand stack underflow");
         }
-        this.view.setInt32(addr, value);
-        this.rtPtr++;
+        const addr = VirtualMachine.OS_BASE + (this.osPtr - 1) * 4;
+        return this.view.getInt32(addr);
+    }
+
+    private pushReturn(addr: number): void {
+        if (this.returnStack.length >= 100) {
+            throw new Error("Call stack overflow");
+        }
+        this.returnStack.push(addr);
+        console.log(`[VM] Pushed return address ${addr} to call stack`);
     }
 
     private popReturn(): number {
-        if (this.rtPtr <= 0) {
-            throw new Error("Return stack underflow");
+        if (this.returnStack.length === 0) {
+            throw new Error("Call stack underflow - trying to return without a call");
         }
-        this.rtPtr--;
-        const addr = VirtualMachine.RT_BASE + this.rtPtr * 4;
-        const value = this.view.getInt32(addr);
-        this.view.setInt32(addr, 0);
-        return value;
+        const addr = this.returnStack.pop();
+        console.log(`[VM] Popped return address ${addr} from call stack`);
+        return addr;
     }
 
     private load(addr: number): number {
@@ -283,7 +294,8 @@ export class VirtualMachine {
     public run(): number {
         this.pc = 0;
         this.osPtr = 0; // Reset operand stack pointer
-
+        let a: number;
+        let b: number;
         try {
             while (this.pc < this.ic) {
                 const instr = this.instructions[this.pc++];
@@ -311,16 +323,14 @@ export class VirtualMachine {
                         }
                         break;
                     case InstructionTag.PLUS: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a + b;
                         console.log(`[VM] PLUS: ${a} + ${b} = ${result}`);
                         this.pushOperand(result);
                         break;
                     }
                     case InstructionTag.MINUS: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a - b;
                         console.log(`[VM] MINUS: ${a} - ${b} = ${result}`);
                         this.pushOperand(result);
@@ -328,16 +338,14 @@ export class VirtualMachine {
                     }
 
                     case InstructionTag.TIMES: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a * b;
                         console.log(`[VM] TIMES: ${a} * ${b} = ${result}`);
                         this.pushOperand(result);
                         break;
                     }
                     case InstructionTag.DIVIDE: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
 
                         if (b === 0) {
                             throw new Error("Division by zero");
@@ -350,48 +358,42 @@ export class VirtualMachine {
                         break;
                     }
                     case InstructionTag.LT: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a < b ? 1 : 0;
                         console.log(`[VM] LT: ${a} < ${b} = ${result}`);
                         this.pushOperand(result);
                         break;
                     }
                     case InstructionTag.LE: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a <= b ? 1 : 0;
                         console.log(`[VM] LE: ${a} <= ${b} = ${result}`);
                         this.pushOperand(result);
                         break;
                     }
                     case InstructionTag.GT: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a > b ? 1 : 0;
                         console.log(`[VM] GT: ${a} > ${b} = ${result}`);
                         this.pushOperand(result);
                         break;
                     }
                     case InstructionTag.GE: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a >= b ? 1 : 0;
                         console.log(`[VM] GE: ${a} >= ${b} = ${result}`);
                         this.pushOperand(result);
                         break;
                     }
                     case InstructionTag.EQ: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a === b ? 1 : 0;
                         console.log(`[VM] EQ: ${a} == ${b} = ${result}`);
                         this.pushOperand(result);
                         break;
                     }
                     case InstructionTag.NE: {
-                        const b = this.popOperand();
-                        const a = this.popOperand();
+                        const [a, b] = this.popTwoOperands();
                         const result = a !== b ? 1 : 0;
                         console.log(`[VM] NE: ${a} != ${b} = ${result}`);
                         this.pushOperand(result);
@@ -442,29 +444,24 @@ export class VirtualMachine {
                         this.store(instr.value, value);
                         break;
                     }
-                    case InstructionTag.LOADADDR: {
-                        if (instr.value === undefined) {
-                            throw new Error("LOADADDR instruction missing address");
-                        }
-                        console.log(
-                            `[VM] LOADADDR: Loading address ${instr.value} onto stack`
-                        );
-                        this.pushOperand(instr.value);
-                        break;
-                    }
                     case InstructionTag.FETCH: {
+                        // Pop an address from the stack
                         const addr = this.popOperand();
+                        
+                        // Load the value at that address
                         const value = this.load(addr);
-                        console.log(`[VM] FETCH: Loaded value at ${addr}: ${value}`);
+                        
+                        // Push the value onto the stack
                         this.pushOperand(value);
+                        console.log(`[VM] FETCH: Loaded ${value} from address ${addr}`);
                         break;
                     }
                     case InstructionTag.FREE: {
-                        if (instr.value === undefined) {
-                            throw new Error("FREE instruction missing address");
+                        // Mark memory as available for reuse
+                        if (instr.value !== undefined) {
+                            console.log(`[VM] FREE: Releasing memory at address ${instr.value}`);
+                            // Add memory management code here
                         }
-                        console.log(`[VM] FREE: Freeing value at ${instr.value}`);
-                        this.free(instr.value);
                         break;
                     }
                     case InstructionTag.CALL: {
@@ -472,7 +469,8 @@ export class VirtualMachine {
                             throw new Error("CALL instruction missing address");
                         }
                         console.log(`[VM] CALL: Calling function at ${instr.value}`);
-                        this.pushReturn(this.pc);
+                        // Store the address of the next instruction to return to
+                        this.pushReturn(this.pc + 1); 
                         this.pc = instr.value;
                         break;
                     }
@@ -482,6 +480,41 @@ export class VirtualMachine {
                         this.pc = returnAddr;
                         break;
                     }
+
+                    case InstructionTag.NEG: {
+                        if (this.osPtr <= 0) {
+                            throw new Error("Not enough operands for negation");
+                        }
+                        
+                        const value = this.popOperand();
+                        const result = -value;
+                        console.log(`[VM] NEG: -${value} = ${result}`);
+                        this.pushOperand(result);
+                        break;
+                    }
+                    
+                    case InstructionTag.AND:
+                        a = this.popOperand();
+                        b = this.popOperand();
+                        this.pushOperand(a !== 0 && b !== 0 ? 1 : 0);
+                        break;
+                    case InstructionTag.OR:
+                        a = this.popOperand();
+                        b = this.popOperand();
+                        this.pushOperand(a !== 0 || b !== 0 ? 1 : 0);
+                        break;
+                    case InstructionTag.NOT:
+                        a = this.popOperand();
+                        this.pushOperand(a === 0 ? 1 : 0);
+                        break;
+                    case InstructionTag.DUP:
+                        a = this.popOperand();
+                        this.pushOperand(a);
+                        this.pushOperand(a);
+                        break;
+                    case InstructionTag.POP:
+                        this.popOperand();
+                        break;
                     default:
                         console.warn(`Unknown instruction: ${instr.tag}`);
                 }
@@ -508,10 +541,26 @@ export class VirtualMachine {
         this.pc = 0;
         this.osPtr = VirtualMachine.OS_BASE;
         this.instructions = [];
+        this.labels = new Map();
+        this.forwardRefs = new Map();
         this.rsPtr = VirtualMachine.RS_BASE;
 
         // Clear memory
         this.memory = new ArrayBuffer(this.memSize);
         this.view = new DataView(this.memory);
+        this.returnStack = [];
+        console.log("[VM] VM state reset");
     }
+
+    // Store type information when storing a value
+    public storeValue(addr: number, value: number): void {
+        // Check if addr is valid
+        if (addr < 0 || addr + 8 > this.memSize) {
+            throw new Error(`Invalid memory address for write: ${addr}`);
+        }
+        
+        // Store the value in memory
+        this.view.setFloat64(addr, value, true);
+    }
+
 }

@@ -18,15 +18,19 @@ import { StandardAssignmentContext } from "./RustParser.js";
 import { DereferenceAssignmentContext } from "./RustParser.js";
 import { ExpressionStatementContext } from "./RustParser.js";
 import { IdentifierContext } from "./RustParser.js";
+import { BoolContext } from "./RustParser.js";
 import { DereferenceExprContext } from "./RustParser.js";
 import { ReferenceExprContext } from "./RustParser.js";
 import { EqualityOpContext } from "./RustParser.js";
-import { FunctionCallContext } from "./RustParser.js";
 import { UnaryOpContext } from "./RustParser.js";
-import { MulDivOpContext } from "./RustParser.js";
-import { ParenExprContext } from "./RustParser.js";
 import { IntContext } from "./RustParser.js";
+import { ParenExprContext } from "./RustParser.js";
 import { AddSubOpContext } from "./RustParser.js";
+import { LogicalAndOpContext } from "./RustParser.js";
+import { LogicalOrOpContext } from "./RustParser.js";
+import { FunctionCallContext } from "./RustParser.js";
+import { MulDivOpContext } from "./RustParser.js";
+import { LogicalNotOpContext } from "./RustParser.js";
 import { ArgListContext } from "./RustParser.js";
 import { TypeContext } from "./RustParser.js";
 import { BreakStatementContext } from "./RustParser.js";
@@ -134,6 +138,13 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitIdentifier?: (ctx: IdentifierContext) => Result;
     /**
+     * Visit a parse tree produced by the `bool`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitBool?: (ctx: BoolContext) => Result;
+    /**
      * Visit a parse tree produced by the `dereferenceExpr`
      * labeled alternative in `RustParser.expression`.
      * @param ctx the parse tree
@@ -155,33 +166,12 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitEqualityOp?: (ctx: EqualityOpContext) => Result;
     /**
-     * Visit a parse tree produced by the `functionCall`
-     * labeled alternative in `RustParser.expression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitFunctionCall?: (ctx: FunctionCallContext) => Result;
-    /**
      * Visit a parse tree produced by the `unaryOp`
      * labeled alternative in `RustParser.expression`.
      * @param ctx the parse tree
      * @return the visitor result
      */
     visitUnaryOp?: (ctx: UnaryOpContext) => Result;
-    /**
-     * Visit a parse tree produced by the `mulDivOp`
-     * labeled alternative in `RustParser.expression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitMulDivOp?: (ctx: MulDivOpContext) => Result;
-    /**
-     * Visit a parse tree produced by the `parenExpr`
-     * labeled alternative in `RustParser.expression`.
-     * @param ctx the parse tree
-     * @return the visitor result
-     */
-    visitParenExpr?: (ctx: ParenExprContext) => Result;
     /**
      * Visit a parse tree produced by the `int`
      * labeled alternative in `RustParser.expression`.
@@ -190,12 +180,54 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      */
     visitInt?: (ctx: IntContext) => Result;
     /**
+     * Visit a parse tree produced by the `parenExpr`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitParenExpr?: (ctx: ParenExprContext) => Result;
+    /**
      * Visit a parse tree produced by the `addSubOp`
      * labeled alternative in `RustParser.expression`.
      * @param ctx the parse tree
      * @return the visitor result
      */
     visitAddSubOp?: (ctx: AddSubOpContext) => Result;
+    /**
+     * Visit a parse tree produced by the `logicalAndOp`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitLogicalAndOp?: (ctx: LogicalAndOpContext) => Result;
+    /**
+     * Visit a parse tree produced by the `logicalOrOp`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitLogicalOrOp?: (ctx: LogicalOrOpContext) => Result;
+    /**
+     * Visit a parse tree produced by the `functionCall`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitFunctionCall?: (ctx: FunctionCallContext) => Result;
+    /**
+     * Visit a parse tree produced by the `mulDivOp`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitMulDivOp?: (ctx: MulDivOpContext) => Result;
+    /**
+     * Visit a parse tree produced by the `logicalNotOp`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitLogicalNotOp?: (ctx: LogicalNotOpContext) => Result;
     /**
      * Visit a parse tree produced by `RustParser.argList`.
      * @param ctx the parse tree

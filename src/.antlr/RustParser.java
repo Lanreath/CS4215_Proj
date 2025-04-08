@@ -19,8 +19,8 @@ public class RustParser extends Parser {
 		T__0=1, T__1=2, T__2=3, T__3=4, T__4=5, T__5=6, T__6=7, T__7=8, T__8=9, 
 		T__9=10, T__10=11, T__11=12, T__12=13, T__13=14, T__14=15, T__15=16, T__16=17, 
 		T__17=18, T__18=19, T__19=20, T__20=21, T__21=22, T__22=23, T__23=24, 
-		T__24=25, T__25=26, T__26=27, T__27=28, T__28=29, IDENTIFIER=30, INT=31, 
-		WS=32;
+		T__24=25, T__25=26, T__26=27, T__27=28, T__28=29, T__29=30, T__30=31, 
+		T__31=32, T__32=33, BOOL=34, IDENTIFIER=35, INT=36, WS=37;
 	public static final int
 		RULE_prog = 0, RULE_statement = 1, RULE_returnStatement = 2, RULE_variableDeclaration = 3, 
 		RULE_functionDeclaration = 4, RULE_paramList = 5, RULE_param = 6, RULE_block = 7, 
@@ -41,8 +41,8 @@ public class RustParser extends Parser {
 		return new String[] {
 			null, "'return'", "';'", "'let'", "'mut'", "':'", "'='", "'fn'", "'('", 
 			"')'", "'->'", "','", "'{'", "'}'", "'if'", "'else'", "'while'", "'*'", 
-			"'&'", "'>'", "'>='", "'<'", "'<='", "'=='", "'!='", "'/'", "'+'", "'-'", 
-			"'i64'", "'break'"
+			"'-'", "'!'", "'/'", "'+'", "'<'", "'<='", "'>'", "'>='", "'=='", "'!='", 
+			"'&&'", "'||'", "'&'", "'i64'", "'bool'", "'break'"
 		};
 	}
 	private static final String[] _LITERAL_NAMES = makeLiteralNames();
@@ -50,7 +50,8 @@ public class RustParser extends Parser {
 		return new String[] {
 			null, null, null, null, null, null, null, null, null, null, null, null, 
 			null, null, null, null, null, null, null, null, null, null, null, null, 
-			null, null, null, null, null, null, "IDENTIFIER", "INT", "WS"
+			null, null, null, null, null, null, null, null, null, null, "BOOL", "IDENTIFIER", 
+			"INT", "WS"
 		};
 	}
 	private static final String[] _SYMBOLIC_NAMES = makeSymbolicNames();
@@ -117,6 +118,14 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_prog; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterProg(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitProg(this);
+		}
 	}
 
 	public final ProgContext prog() throws RecognitionException {
@@ -129,7 +138,7 @@ public class RustParser extends Parser {
 			setState(37);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
-			while ((((_la) & ~0x3f) == 0 && ((1L << _la) & 3892793738L) != 0)) {
+			while ((((_la) & ~0x3f) == 0 && ((1L << _la) & 129923764618L) != 0)) {
 				{
 				{
 				setState(34);
@@ -188,6 +197,14 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_statement; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterStatement(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitStatement(this);
+		}
 	}
 
 	public final StatementContext statement() throws RecognitionException {
@@ -282,6 +299,14 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_returnStatement; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterReturnStatement(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitReturnStatement(this);
+		}
 	}
 
 	public final ReturnStatementContext returnStatement() throws RecognitionException {
@@ -296,7 +321,7 @@ public class RustParser extends Parser {
 			setState(55);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
-			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 3355836672L) != 0)) {
+			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 121333743872L) != 0)) {
 				{
 				setState(54);
 				expression(0);
@@ -334,6 +359,14 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_variableDeclaration; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterVariableDeclaration(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitVariableDeclaration(this);
+		}
 	}
 
 	public final VariableDeclarationContext variableDeclaration() throws RecognitionException {
@@ -399,6 +432,14 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_functionDeclaration; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterFunctionDeclaration(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitFunctionDeclaration(this);
+		}
 	}
 
 	public final FunctionDeclarationContext functionDeclaration() throws RecognitionException {
@@ -431,7 +472,7 @@ public class RustParser extends Parser {
 			setState(79);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
-			if (_la==T__17 || _la==T__27) {
+			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 7516192768L) != 0)) {
 				{
 				setState(78);
 				((FunctionDeclarationContext)_localctx).returnType = type();
@@ -465,6 +506,14 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_paramList; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterParamList(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitParamList(this);
+		}
 	}
 
 	public final ParamListContext paramList() throws RecognitionException {
@@ -516,6 +565,14 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_param; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterParam(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitParam(this);
+		}
 	}
 
 	public final ParamContext param() throws RecognitionException {
@@ -558,6 +615,14 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_block; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterBlock(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitBlock(this);
+		}
 	}
 
 	public final BlockContext block() throws RecognitionException {
@@ -589,7 +654,7 @@ public class RustParser extends Parser {
 			setState(103);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
-			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 3355836672L) != 0)) {
+			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 121333743872L) != 0)) {
 				{
 				setState(102);
 				expression(0);
@@ -628,6 +693,14 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_ifStatement; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterIfStatement(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitIfStatement(this);
+		}
 	}
 
 	public final IfStatementContext ifStatement() throws RecognitionException {
@@ -680,6 +753,14 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_elseBranch; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterElseBranch(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitElseBranch(this);
+		}
 	}
 
 	public final ElseBranchContext elseBranch() throws RecognitionException {
@@ -734,6 +815,14 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_whileStatement; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterWhileStatement(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitWhileStatement(this);
+		}
 	}
 
 	public final WhileStatementContext whileStatement() throws RecognitionException {
@@ -784,6 +873,14 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,i);
 		}
 		public DereferenceAssignmentContext(AssignmentContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterDereferenceAssignment(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitDereferenceAssignment(this);
+		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class StandardAssignmentContext extends AssignmentContext {
@@ -792,6 +889,14 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,0);
 		}
 		public StandardAssignmentContext(AssignmentContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterStandardAssignment(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitStandardAssignment(this);
+		}
 	}
 
 	public final AssignmentContext assignment() throws RecognitionException {
@@ -855,6 +960,14 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_expressionStatement; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterExpressionStatement(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitExpressionStatement(this);
+		}
 	}
 
 	public final ExpressionStatementContext expressionStatement() throws RecognitionException {
@@ -896,6 +1009,27 @@ public class RustParser extends Parser {
 	public static class IdentifierContext extends ExpressionContext {
 		public TerminalNode IDENTIFIER() { return getToken(RustParser.IDENTIFIER, 0); }
 		public IdentifierContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterIdentifier(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitIdentifier(this);
+		}
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class BoolContext extends ExpressionContext {
+		public TerminalNode BOOL() { return getToken(RustParser.BOOL, 0); }
+		public BoolContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterBool(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitBool(this);
+		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class DereferenceExprContext extends ExpressionContext {
@@ -904,6 +1038,14 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,0);
 		}
 		public DereferenceExprContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterDereferenceExpr(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitDereferenceExpr(this);
+		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class ReferenceExprContext extends ExpressionContext {
@@ -913,12 +1055,18 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,0);
 		}
 		public ReferenceExprContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterReferenceExpr(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitReferenceExpr(this);
+		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class EqualityOpContext extends ExpressionContext {
-		public ExpressionContext left;
 		public Token op;
-		public ExpressionContext right;
 		public List<ExpressionContext> expression() {
 			return getRuleContexts(ExpressionContext.class);
 		}
@@ -926,6 +1074,114 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,i);
 		}
 		public EqualityOpContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterEqualityOp(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitEqualityOp(this);
+		}
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class UnaryOpContext extends ExpressionContext {
+		public ExpressionContext expression() {
+			return getRuleContext(ExpressionContext.class,0);
+		}
+		public UnaryOpContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterUnaryOp(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitUnaryOp(this);
+		}
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class IntContext extends ExpressionContext {
+		public TerminalNode INT() { return getToken(RustParser.INT, 0); }
+		public IntContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterInt(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitInt(this);
+		}
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class ParenExprContext extends ExpressionContext {
+		public ExpressionContext expression() {
+			return getRuleContext(ExpressionContext.class,0);
+		}
+		public ParenExprContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterParenExpr(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitParenExpr(this);
+		}
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class AddSubOpContext extends ExpressionContext {
+		public Token op;
+		public List<ExpressionContext> expression() {
+			return getRuleContexts(ExpressionContext.class);
+		}
+		public ExpressionContext expression(int i) {
+			return getRuleContext(ExpressionContext.class,i);
+		}
+		public AddSubOpContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterAddSubOp(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitAddSubOp(this);
+		}
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class LogicalAndOpContext extends ExpressionContext {
+		public Token op;
+		public List<ExpressionContext> expression() {
+			return getRuleContexts(ExpressionContext.class);
+		}
+		public ExpressionContext expression(int i) {
+			return getRuleContext(ExpressionContext.class,i);
+		}
+		public LogicalAndOpContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterLogicalAndOp(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitLogicalAndOp(this);
+		}
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class LogicalOrOpContext extends ExpressionContext {
+		public Token op;
+		public List<ExpressionContext> expression() {
+			return getRuleContexts(ExpressionContext.class);
+		}
+		public ExpressionContext expression(int i) {
+			return getRuleContext(ExpressionContext.class,i);
+		}
+		public LogicalOrOpContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterLogicalOrOp(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitLogicalOrOp(this);
+		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class FunctionCallContext extends ExpressionContext {
@@ -934,20 +1190,18 @@ public class RustParser extends Parser {
 			return getRuleContext(ArgListContext.class,0);
 		}
 		public FunctionCallContext(ExpressionContext ctx) { copyFrom(ctx); }
-	}
-	@SuppressWarnings("CheckReturnValue")
-	public static class UnaryOpContext extends ExpressionContext {
-		public ExpressionContext operand;
-		public ExpressionContext expression() {
-			return getRuleContext(ExpressionContext.class,0);
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterFunctionCall(this);
 		}
-		public UnaryOpContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitFunctionCall(this);
+		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class MulDivOpContext extends ExpressionContext {
-		public ExpressionContext left;
 		public Token op;
-		public ExpressionContext right;
 		public List<ExpressionContext> expression() {
 			return getRuleContexts(ExpressionContext.class);
 		}
@@ -955,31 +1209,29 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,i);
 		}
 		public MulDivOpContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterMulDivOp(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitMulDivOp(this);
+		}
 	}
 	@SuppressWarnings("CheckReturnValue")
-	public static class ParenExprContext extends ExpressionContext {
+	public static class LogicalNotOpContext extends ExpressionContext {
 		public ExpressionContext expression() {
 			return getRuleContext(ExpressionContext.class,0);
 		}
-		public ParenExprContext(ExpressionContext ctx) { copyFrom(ctx); }
-	}
-	@SuppressWarnings("CheckReturnValue")
-	public static class IntContext extends ExpressionContext {
-		public TerminalNode INT() { return getToken(RustParser.INT, 0); }
-		public IntContext(ExpressionContext ctx) { copyFrom(ctx); }
-	}
-	@SuppressWarnings("CheckReturnValue")
-	public static class AddSubOpContext extends ExpressionContext {
-		public ExpressionContext left;
-		public Token op;
-		public ExpressionContext right;
-		public List<ExpressionContext> expression() {
-			return getRuleContexts(ExpressionContext.class);
+		public LogicalNotOpContext(ExpressionContext ctx) { copyFrom(ctx); }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterLogicalNotOp(this);
 		}
-		public ExpressionContext expression(int i) {
-			return getRuleContext(ExpressionContext.class,i);
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitLogicalNotOp(this);
 		}
-		public AddSubOpContext(ExpressionContext ctx) { copyFrom(ctx); }
 	}
 
 	public final ExpressionContext expression() throws RecognitionException {
@@ -998,110 +1250,130 @@ public class RustParser extends Parser {
 			int _alt;
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(163);
+			setState(166);
 			_errHandler.sync(this);
 			switch ( getInterpreter().adaptivePredict(_input,14,_ctx) ) {
 			case 1:
 				{
-				_localctx = new ParenExprContext(_localctx);
+				_localctx = new IntContext(_localctx);
 				_ctx = _localctx;
 				_prevctx = _localctx;
 
 				setState(142);
-				match(T__7);
-				setState(143);
-				expression(0);
-				setState(144);
-				match(T__8);
+				match(INT);
 				}
 				break;
 			case 2:
 				{
-				_localctx = new ReferenceExprContext(_localctx);
+				_localctx = new BoolContext(_localctx);
 				_ctx = _localctx;
 				_prevctx = _localctx;
-				setState(146);
-				match(T__17);
-				setState(148);
-				_errHandler.sync(this);
-				_la = _input.LA(1);
-				if (_la==T__3) {
-					{
-					setState(147);
-					((ReferenceExprContext)_localctx).mutFlag = match(T__3);
-					}
-				}
-
-				setState(150);
-				((ReferenceExprContext)_localctx).target = expression(9);
+				setState(143);
+				match(BOOL);
 				}
 				break;
 			case 3:
 				{
-				_localctx = new DereferenceExprContext(_localctx);
+				_localctx = new IdentifierContext(_localctx);
 				_ctx = _localctx;
 				_prevctx = _localctx;
-				setState(151);
-				match(T__16);
-				setState(152);
-				((DereferenceExprContext)_localctx).target = expression(8);
+				setState(144);
+				match(IDENTIFIER);
 				}
 				break;
 			case 4:
 				{
-				_localctx = new UnaryOpContext(_localctx);
+				_localctx = new ParenExprContext(_localctx);
 				_ctx = _localctx;
 				_prevctx = _localctx;
-				setState(153);
-				match(T__26);
-				setState(154);
-				((UnaryOpContext)_localctx).operand = expression(4);
+				setState(145);
+				match(T__7);
+				setState(146);
+				expression(0);
+				setState(147);
+				match(T__8);
 				}
 				break;
 			case 5:
 				{
-				_localctx = new FunctionCallContext(_localctx);
+				_localctx = new UnaryOpContext(_localctx);
 				_ctx = _localctx;
 				_prevctx = _localctx;
-				setState(155);
-				match(IDENTIFIER);
-				setState(156);
-				match(T__7);
-				setState(158);
-				_errHandler.sync(this);
-				_la = _input.LA(1);
-				if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 3355836672L) != 0)) {
-					{
-					setState(157);
-					argList();
-					}
-				}
-
-				setState(160);
-				match(T__8);
+				setState(149);
+				match(T__17);
+				setState(150);
+				expression(11);
 				}
 				break;
 			case 6:
 				{
-				_localctx = new IdentifierContext(_localctx);
+				_localctx = new LogicalNotOpContext(_localctx);
 				_ctx = _localctx;
 				_prevctx = _localctx;
-				setState(161);
-				match(IDENTIFIER);
+				setState(151);
+				match(T__18);
+				setState(152);
+				expression(10);
 				}
 				break;
 			case 7:
 				{
-				_localctx = new IntContext(_localctx);
+				_localctx = new FunctionCallContext(_localctx);
 				_ctx = _localctx;
 				_prevctx = _localctx;
-				setState(162);
-				match(INT);
+				setState(153);
+				match(IDENTIFIER);
+				setState(154);
+				match(T__7);
+				setState(156);
+				_errHandler.sync(this);
+				_la = _input.LA(1);
+				if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 121333743872L) != 0)) {
+					{
+					setState(155);
+					argList();
+					}
+				}
+
+				setState(158);
+				match(T__8);
+				}
+				break;
+			case 8:
+				{
+				_localctx = new ReferenceExprContext(_localctx);
+				_ctx = _localctx;
+				_prevctx = _localctx;
+				setState(159);
+				match(T__29);
+				setState(161);
+				_errHandler.sync(this);
+				_la = _input.LA(1);
+				if (_la==T__3) {
+					{
+					setState(160);
+					((ReferenceExprContext)_localctx).mutFlag = match(T__3);
+					}
+				}
+
+				setState(163);
+				((ReferenceExprContext)_localctx).target = expression(2);
+				}
+				break;
+			case 9:
+				{
+				_localctx = new DereferenceExprContext(_localctx);
+				_ctx = _localctx;
+				_prevctx = _localctx;
+				setState(164);
+				match(T__16);
+				setState(165);
+				((DereferenceExprContext)_localctx).target = expression(1);
 				}
 				break;
 			}
 			_ctx.stop = _input.LT(-1);
-			setState(176);
+			setState(188);
 			_errHandler.sync(this);
 			_alt = getInterpreter().adaptivePredict(_input,16,_ctx);
 			while ( _alt!=2 && _alt!=org.antlr.v4.runtime.atn.ATN.INVALID_ALT_NUMBER ) {
@@ -1109,42 +1381,19 @@ public class RustParser extends Parser {
 					if ( _parseListeners!=null ) triggerExitRuleEvent();
 					_prevctx = _localctx;
 					{
-					setState(174);
+					setState(186);
 					_errHandler.sync(this);
 					switch ( getInterpreter().adaptivePredict(_input,15,_ctx) ) {
 					case 1:
 						{
-						_localctx = new EqualityOpContext(new ExpressionContext(_parentctx, _parentState));
-						((EqualityOpContext)_localctx).left = _prevctx;
-						pushNewRecursionContext(_localctx, _startState, RULE_expression);
-						setState(165);
-						if (!(precpred(_ctx, 7))) throw new FailedPredicateException(this, "precpred(_ctx, 7)");
-						setState(166);
-						((EqualityOpContext)_localctx).op = _input.LT(1);
-						_la = _input.LA(1);
-						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 33030144L) != 0)) ) {
-							((EqualityOpContext)_localctx).op = (Token)_errHandler.recoverInline(this);
-						}
-						else {
-							if ( _input.LA(1)==Token.EOF ) matchedEOF = true;
-							_errHandler.reportMatch(this);
-							consume();
-						}
-						setState(167);
-						((EqualityOpContext)_localctx).right = expression(8);
-						}
-						break;
-					case 2:
-						{
 						_localctx = new MulDivOpContext(new ExpressionContext(_parentctx, _parentState));
-						((MulDivOpContext)_localctx).left = _prevctx;
 						pushNewRecursionContext(_localctx, _startState, RULE_expression);
 						setState(168);
-						if (!(precpred(_ctx, 6))) throw new FailedPredicateException(this, "precpred(_ctx, 6)");
+						if (!(precpred(_ctx, 9))) throw new FailedPredicateException(this, "precpred(_ctx, 9)");
 						setState(169);
 						((MulDivOpContext)_localctx).op = _input.LT(1);
 						_la = _input.LA(1);
-						if ( !(_la==T__16 || _la==T__24) ) {
+						if ( !(_la==T__16 || _la==T__19) ) {
 							((MulDivOpContext)_localctx).op = (Token)_errHandler.recoverInline(this);
 						}
 						else {
@@ -1153,20 +1402,19 @@ public class RustParser extends Parser {
 							consume();
 						}
 						setState(170);
-						((MulDivOpContext)_localctx).right = expression(7);
+						expression(10);
 						}
 						break;
-					case 3:
+					case 2:
 						{
 						_localctx = new AddSubOpContext(new ExpressionContext(_parentctx, _parentState));
-						((AddSubOpContext)_localctx).left = _prevctx;
 						pushNewRecursionContext(_localctx, _startState, RULE_expression);
 						setState(171);
-						if (!(precpred(_ctx, 5))) throw new FailedPredicateException(this, "precpred(_ctx, 5)");
+						if (!(precpred(_ctx, 8))) throw new FailedPredicateException(this, "precpred(_ctx, 8)");
 						setState(172);
 						((AddSubOpContext)_localctx).op = _input.LT(1);
 						_la = _input.LA(1);
-						if ( !(_la==T__25 || _la==T__26) ) {
+						if ( !(_la==T__17 || _la==T__20) ) {
 							((AddSubOpContext)_localctx).op = (Token)_errHandler.recoverInline(this);
 						}
 						else {
@@ -1175,13 +1423,79 @@ public class RustParser extends Parser {
 							consume();
 						}
 						setState(173);
-						((AddSubOpContext)_localctx).right = expression(6);
+						expression(9);
+						}
+						break;
+					case 3:
+						{
+						_localctx = new EqualityOpContext(new ExpressionContext(_parentctx, _parentState));
+						pushNewRecursionContext(_localctx, _startState, RULE_expression);
+						setState(174);
+						if (!(precpred(_ctx, 7))) throw new FailedPredicateException(this, "precpred(_ctx, 7)");
+						setState(175);
+						((EqualityOpContext)_localctx).op = _input.LT(1);
+						_la = _input.LA(1);
+						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 62914560L) != 0)) ) {
+							((EqualityOpContext)_localctx).op = (Token)_errHandler.recoverInline(this);
+						}
+						else {
+							if ( _input.LA(1)==Token.EOF ) matchedEOF = true;
+							_errHandler.reportMatch(this);
+							consume();
+						}
+						setState(176);
+						expression(8);
+						}
+						break;
+					case 4:
+						{
+						_localctx = new EqualityOpContext(new ExpressionContext(_parentctx, _parentState));
+						pushNewRecursionContext(_localctx, _startState, RULE_expression);
+						setState(177);
+						if (!(precpred(_ctx, 6))) throw new FailedPredicateException(this, "precpred(_ctx, 6)");
+						setState(178);
+						((EqualityOpContext)_localctx).op = _input.LT(1);
+						_la = _input.LA(1);
+						if ( !(_la==T__25 || _la==T__26) ) {
+							((EqualityOpContext)_localctx).op = (Token)_errHandler.recoverInline(this);
+						}
+						else {
+							if ( _input.LA(1)==Token.EOF ) matchedEOF = true;
+							_errHandler.reportMatch(this);
+							consume();
+						}
+						setState(179);
+						expression(7);
+						}
+						break;
+					case 5:
+						{
+						_localctx = new LogicalAndOpContext(new ExpressionContext(_parentctx, _parentState));
+						pushNewRecursionContext(_localctx, _startState, RULE_expression);
+						setState(180);
+						if (!(precpred(_ctx, 5))) throw new FailedPredicateException(this, "precpred(_ctx, 5)");
+						setState(181);
+						((LogicalAndOpContext)_localctx).op = match(T__27);
+						setState(182);
+						expression(6);
+						}
+						break;
+					case 6:
+						{
+						_localctx = new LogicalOrOpContext(new ExpressionContext(_parentctx, _parentState));
+						pushNewRecursionContext(_localctx, _startState, RULE_expression);
+						setState(183);
+						if (!(precpred(_ctx, 4))) throw new FailedPredicateException(this, "precpred(_ctx, 4)");
+						setState(184);
+						((LogicalOrOpContext)_localctx).op = match(T__28);
+						setState(185);
+						expression(5);
 						}
 						break;
 					}
 					} 
 				}
-				setState(178);
+				setState(190);
 				_errHandler.sync(this);
 				_alt = getInterpreter().adaptivePredict(_input,16,_ctx);
 			}
@@ -1210,6 +1524,14 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_argList; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterArgList(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitArgList(this);
+		}
 	}
 
 	public final ArgListContext argList() throws RecognitionException {
@@ -1219,21 +1541,21 @@ public class RustParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(179);
+			setState(191);
 			expression(0);
-			setState(184);
+			setState(196);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
 			while (_la==T__10) {
 				{
 				{
-				setState(180);
+				setState(192);
 				match(T__10);
-				setState(181);
+				setState(193);
 				expression(0);
 				}
 				}
-				setState(186);
+				setState(198);
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 			}
@@ -1258,6 +1580,14 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_type; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterType(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitType(this);
+		}
 	}
 
 	public final TypeContext type() throws RecognitionException {
@@ -1267,19 +1597,19 @@ public class RustParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(191);
+			setState(203);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
-			if (_la==T__17) {
+			if (_la==T__29) {
 				{
-				setState(187);
-				((TypeContext)_localctx).refFlag = match(T__17);
-				setState(189);
+				setState(199);
+				((TypeContext)_localctx).refFlag = match(T__29);
+				setState(201);
 				_errHandler.sync(this);
 				_la = _input.LA(1);
 				if (_la==T__3) {
 					{
-					setState(188);
+					setState(200);
 					((TypeContext)_localctx).mutFlag = match(T__3);
 					}
 				}
@@ -1287,8 +1617,16 @@ public class RustParser extends Parser {
 				}
 			}
 
-			setState(193);
-			match(T__27);
+			setState(205);
+			_la = _input.LA(1);
+			if ( !(_la==T__30 || _la==T__31) ) {
+			_errHandler.recoverInline(this);
+			}
+			else {
+				if ( _input.LA(1)==Token.EOF ) matchedEOF = true;
+				_errHandler.reportMatch(this);
+				consume();
+			}
 			}
 		}
 		catch (RecognitionException re) {
@@ -1308,6 +1646,14 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_breakStatement; }
+		@Override
+		public void enterRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).enterBreakStatement(this);
+		}
+		@Override
+		public void exitRule(ParseTreeListener listener) {
+			if ( listener instanceof RustListener ) ((RustListener)listener).exitBreakStatement(this);
+		}
 	}
 
 	public final BreakStatementContext breakStatement() throws RecognitionException {
@@ -1316,9 +1662,9 @@ public class RustParser extends Parser {
 		try {
 			enterOuterAlt(_localctx, 1);
 			{
-			setState(195);
-			match(T__28);
-			setState(196);
+			setState(207);
+			match(T__32);
+			setState(208);
 			match(T__1);
 			}
 		}
@@ -1343,17 +1689,23 @@ public class RustParser extends Parser {
 	private boolean expression_sempred(ExpressionContext _localctx, int predIndex) {
 		switch (predIndex) {
 		case 0:
-			return precpred(_ctx, 7);
+			return precpred(_ctx, 9);
 		case 1:
-			return precpred(_ctx, 6);
+			return precpred(_ctx, 8);
 		case 2:
+			return precpred(_ctx, 7);
+		case 3:
+			return precpred(_ctx, 6);
+		case 4:
 			return precpred(_ctx, 5);
+		case 5:
+			return precpred(_ctx, 4);
 		}
 		return true;
 	}
 
 	public static final String _serializedATN =
-		"\u0004\u0001 \u00c7\u0002\u0000\u0007\u0000\u0002\u0001\u0007\u0001\u0002"+
+		"\u0004\u0001%\u00d3\u0002\u0000\u0007\u0000\u0002\u0001\u0007\u0001\u0002"+
 		"\u0002\u0007\u0002\u0002\u0003\u0007\u0003\u0002\u0004\u0007\u0004\u0002"+
 		"\u0005\u0007\u0005\u0002\u0006\u0007\u0006\u0002\u0007\u0007\u0007\u0002"+
 		"\b\u0007\b\u0002\t\u0007\t\u0002\n\u0007\n\u0002\u000b\u0007\u000b\u0002"+
@@ -1375,42 +1727,44 @@ public class RustParser extends Parser {
 		"\u000b\u0001\u000b\u0001\u000b\u0001\u000b\u0001\u000b\u0001\u000b\u0001"+
 		"\u000b\u0001\u000b\u0001\u000b\u0001\u000b\u0001\u000b\u0003\u000b\u0089"+
 		"\b\u000b\u0001\f\u0001\f\u0001\f\u0001\r\u0001\r\u0001\r\u0001\r\u0001"+
-		"\r\u0001\r\u0001\r\u0003\r\u0095\b\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001"+
-		"\r\u0001\r\u0001\r\u0001\r\u0003\r\u009f\b\r\u0001\r\u0001\r\u0001\r\u0003"+
-		"\r\u00a4\b\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001"+
-		"\r\u0001\r\u0005\r\u00af\b\r\n\r\f\r\u00b2\t\r\u0001\u000e\u0001\u000e"+
-		"\u0001\u000e\u0005\u000e\u00b7\b\u000e\n\u000e\f\u000e\u00ba\t\u000e\u0001"+
-		"\u000f\u0001\u000f\u0003\u000f\u00be\b\u000f\u0003\u000f\u00c0\b\u000f"+
-		"\u0001\u000f\u0001\u000f\u0001\u0010\u0001\u0010\u0001\u0010\u0001\u0010"+
-		"\u0000\u0001\u001a\u0011\u0000\u0002\u0004\u0006\b\n\f\u000e\u0010\u0012"+
-		"\u0014\u0016\u0018\u001a\u001c\u001e \u0000\u0003\u0001\u0000\u0013\u0018"+
-		"\u0002\u0000\u0011\u0011\u0019\u0019\u0001\u0000\u001a\u001b\u00d6\u0000"+
-		"%\u0001\u0000\u0000\u0000\u00023\u0001\u0000\u0000\u0000\u00045\u0001"+
-		"\u0000\u0000\u0000\u0006;\u0001\u0000\u0000\u0000\bF\u0001\u0000\u0000"+
-		"\u0000\nS\u0001\u0000\u0000\u0000\f[\u0001\u0000\u0000\u0000\u000e_\u0001"+
-		"\u0000\u0000\u0000\u0010k\u0001\u0000\u0000\u0000\u0012w\u0001\u0000\u0000"+
-		"\u0000\u0014y\u0001\u0000\u0000\u0000\u0016\u0088\u0001\u0000\u0000\u0000"+
-		"\u0018\u008a\u0001\u0000\u0000\u0000\u001a\u00a3\u0001\u0000\u0000\u0000"+
-		"\u001c\u00b3\u0001\u0000\u0000\u0000\u001e\u00bf\u0001\u0000\u0000\u0000"+
-		" \u00c3\u0001\u0000\u0000\u0000\"$\u0003\u0002\u0001\u0000#\"\u0001\u0000"+
-		"\u0000\u0000$\'\u0001\u0000\u0000\u0000%#\u0001\u0000\u0000\u0000%&\u0001"+
-		"\u0000\u0000\u0000&(\u0001\u0000\u0000\u0000\'%\u0001\u0000\u0000\u0000"+
-		"()\u0005\u0000\u0000\u0001)\u0001\u0001\u0000\u0000\u0000*4\u0003\u0006"+
-		"\u0003\u0000+4\u0003\b\u0004\u0000,4\u0003\u0016\u000b\u0000-4\u0003\u000e"+
-		"\u0007\u0000.4\u0003\u0010\b\u0000/4\u0003\u0014\n\u000004\u0003\u0004"+
-		"\u0002\u000014\u0003 \u0010\u000024\u0003\u0018\f\u00003*\u0001\u0000"+
-		"\u0000\u00003+\u0001\u0000\u0000\u00003,\u0001\u0000\u0000\u00003-\u0001"+
-		"\u0000\u0000\u00003.\u0001\u0000\u0000\u00003/\u0001\u0000\u0000\u0000"+
-		"30\u0001\u0000\u0000\u000031\u0001\u0000\u0000\u000032\u0001\u0000\u0000"+
-		"\u00004\u0003\u0001\u0000\u0000\u000057\u0005\u0001\u0000\u000068\u0003"+
-		"\u001a\r\u000076\u0001\u0000\u0000\u000078\u0001\u0000\u0000\u000089\u0001"+
-		"\u0000\u0000\u00009:\u0005\u0002\u0000\u0000:\u0005\u0001\u0000\u0000"+
-		"\u0000;=\u0005\u0003\u0000\u0000<>\u0005\u0004\u0000\u0000=<\u0001\u0000"+
-		"\u0000\u0000=>\u0001\u0000\u0000\u0000>?\u0001\u0000\u0000\u0000?@\u0005"+
-		"\u001e\u0000\u0000@A\u0005\u0005\u0000\u0000AB\u0003\u001e\u000f\u0000"+
-		"BC\u0005\u0006\u0000\u0000CD\u0003\u001a\r\u0000DE\u0005\u0002\u0000\u0000"+
-		"E\u0007\u0001\u0000\u0000\u0000FG\u0005\u0007\u0000\u0000GH\u0005\u001e"+
-		"\u0000\u0000HJ\u0005\b\u0000\u0000IK\u0003\n\u0005\u0000JI\u0001\u0000"+
+		"\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001"+
+		"\r\u0001\r\u0003\r\u009d\b\r\u0001\r\u0001\r\u0001\r\u0003\r\u00a2\b\r"+
+		"\u0001\r\u0001\r\u0001\r\u0003\r\u00a7\b\r\u0001\r\u0001\r\u0001\r\u0001"+
+		"\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001"+
+		"\r\u0001\r\u0001\r\u0001\r\u0001\r\u0001\r\u0005\r\u00bb\b\r\n\r\f\r\u00be"+
+		"\t\r\u0001\u000e\u0001\u000e\u0001\u000e\u0005\u000e\u00c3\b\u000e\n\u000e"+
+		"\f\u000e\u00c6\t\u000e\u0001\u000f\u0001\u000f\u0003\u000f\u00ca\b\u000f"+
+		"\u0003\u000f\u00cc\b\u000f\u0001\u000f\u0001\u000f\u0001\u0010\u0001\u0010"+
+		"\u0001\u0010\u0001\u0010\u0000\u0001\u001a\u0011\u0000\u0002\u0004\u0006"+
+		"\b\n\f\u000e\u0010\u0012\u0014\u0016\u0018\u001a\u001c\u001e \u0000\u0005"+
+		"\u0002\u0000\u0011\u0011\u0014\u0014\u0002\u0000\u0012\u0012\u0015\u0015"+
+		"\u0001\u0000\u0016\u0019\u0001\u0000\u001a\u001b\u0001\u0000\u001f \u00e7"+
+		"\u0000%\u0001\u0000\u0000\u0000\u00023\u0001\u0000\u0000\u0000\u00045"+
+		"\u0001\u0000\u0000\u0000\u0006;\u0001\u0000\u0000\u0000\bF\u0001\u0000"+
+		"\u0000\u0000\nS\u0001\u0000\u0000\u0000\f[\u0001\u0000\u0000\u0000\u000e"+
+		"_\u0001\u0000\u0000\u0000\u0010k\u0001\u0000\u0000\u0000\u0012w\u0001"+
+		"\u0000\u0000\u0000\u0014y\u0001\u0000\u0000\u0000\u0016\u0088\u0001\u0000"+
+		"\u0000\u0000\u0018\u008a\u0001\u0000\u0000\u0000\u001a\u00a6\u0001\u0000"+
+		"\u0000\u0000\u001c\u00bf\u0001\u0000\u0000\u0000\u001e\u00cb\u0001\u0000"+
+		"\u0000\u0000 \u00cf\u0001\u0000\u0000\u0000\"$\u0003\u0002\u0001\u0000"+
+		"#\"\u0001\u0000\u0000\u0000$\'\u0001\u0000\u0000\u0000%#\u0001\u0000\u0000"+
+		"\u0000%&\u0001\u0000\u0000\u0000&(\u0001\u0000\u0000\u0000\'%\u0001\u0000"+
+		"\u0000\u0000()\u0005\u0000\u0000\u0001)\u0001\u0001\u0000\u0000\u0000"+
+		"*4\u0003\u0006\u0003\u0000+4\u0003\b\u0004\u0000,4\u0003\u0016\u000b\u0000"+
+		"-4\u0003\u000e\u0007\u0000.4\u0003\u0010\b\u0000/4\u0003\u0014\n\u0000"+
+		"04\u0003\u0004\u0002\u000014\u0003 \u0010\u000024\u0003\u0018\f\u0000"+
+		"3*\u0001\u0000\u0000\u00003+\u0001\u0000\u0000\u00003,\u0001\u0000\u0000"+
+		"\u00003-\u0001\u0000\u0000\u00003.\u0001\u0000\u0000\u00003/\u0001\u0000"+
+		"\u0000\u000030\u0001\u0000\u0000\u000031\u0001\u0000\u0000\u000032\u0001"+
+		"\u0000\u0000\u00004\u0003\u0001\u0000\u0000\u000057\u0005\u0001\u0000"+
+		"\u000068\u0003\u001a\r\u000076\u0001\u0000\u0000\u000078\u0001\u0000\u0000"+
+		"\u000089\u0001\u0000\u0000\u00009:\u0005\u0002\u0000\u0000:\u0005\u0001"+
+		"\u0000\u0000\u0000;=\u0005\u0003\u0000\u0000<>\u0005\u0004\u0000\u0000"+
+		"=<\u0001\u0000\u0000\u0000=>\u0001\u0000\u0000\u0000>?\u0001\u0000\u0000"+
+		"\u0000?@\u0005#\u0000\u0000@A\u0005\u0005\u0000\u0000AB\u0003\u001e\u000f"+
+		"\u0000BC\u0005\u0006\u0000\u0000CD\u0003\u001a\r\u0000DE\u0005\u0002\u0000"+
+		"\u0000E\u0007\u0001\u0000\u0000\u0000FG\u0005\u0007\u0000\u0000GH\u0005"+
+		"#\u0000\u0000HJ\u0005\b\u0000\u0000IK\u0003\n\u0005\u0000JI\u0001\u0000"+
 		"\u0000\u0000JK\u0001\u0000\u0000\u0000KL\u0001\u0000\u0000\u0000LM\u0005"+
 		"\t\u0000\u0000MO\u0005\n\u0000\u0000NP\u0003\u001e\u000f\u0000ON\u0001"+
 		"\u0000\u0000\u0000OP\u0001\u0000\u0000\u0000PQ\u0001\u0000\u0000\u0000"+
@@ -1418,7 +1772,7 @@ public class RustParser extends Parser {
 		"\u0000TU\u0005\u000b\u0000\u0000UW\u0003\f\u0006\u0000VT\u0001\u0000\u0000"+
 		"\u0000WZ\u0001\u0000\u0000\u0000XV\u0001\u0000\u0000\u0000XY\u0001\u0000"+
 		"\u0000\u0000Y\u000b\u0001\u0000\u0000\u0000ZX\u0001\u0000\u0000\u0000"+
-		"[\\\u0005\u001e\u0000\u0000\\]\u0005\u0005\u0000\u0000]^\u0003\u001e\u000f"+
+		"[\\\u0005#\u0000\u0000\\]\u0005\u0005\u0000\u0000]^\u0003\u001e\u000f"+
 		"\u0000^\r\u0001\u0000\u0000\u0000_c\u0005\f\u0000\u0000`b\u0003\u0002"+
 		"\u0001\u0000a`\u0001\u0000\u0000\u0000be\u0001\u0000\u0000\u0000ca\u0001"+
 		"\u0000\u0000\u0000cd\u0001\u0000\u0000\u0000dg\u0001\u0000\u0000\u0000"+
@@ -1431,50 +1785,58 @@ public class RustParser extends Parser {
 		"\u0000tx\u0003\u000e\u0007\u0000uv\u0005\u000f\u0000\u0000vx\u0003\u0010"+
 		"\b\u0000ws\u0001\u0000\u0000\u0000wu\u0001\u0000\u0000\u0000x\u0013\u0001"+
 		"\u0000\u0000\u0000yz\u0005\u0010\u0000\u0000z{\u0003\u001a\r\u0000{|\u0003"+
-		"\u000e\u0007\u0000|\u0015\u0001\u0000\u0000\u0000}~\u0005\u001e\u0000"+
-		"\u0000~\u007f\u0005\u0006\u0000\u0000\u007f\u0080\u0003\u001a\r\u0000"+
-		"\u0080\u0081\u0005\u0002\u0000\u0000\u0081\u0089\u0001\u0000\u0000\u0000"+
-		"\u0082\u0083\u0005\u0011\u0000\u0000\u0083\u0084\u0003\u001a\r\u0000\u0084"+
-		"\u0085\u0005\u0006\u0000\u0000\u0085\u0086\u0003\u001a\r\u0000\u0086\u0087"+
-		"\u0005\u0002\u0000\u0000\u0087\u0089\u0001\u0000\u0000\u0000\u0088}\u0001"+
-		"\u0000\u0000\u0000\u0088\u0082\u0001\u0000\u0000\u0000\u0089\u0017\u0001"+
-		"\u0000\u0000\u0000\u008a\u008b\u0003\u001a\r\u0000\u008b\u008c\u0005\u0002"+
-		"\u0000\u0000\u008c\u0019\u0001\u0000\u0000\u0000\u008d\u008e\u0006\r\uffff"+
-		"\uffff\u0000\u008e\u008f\u0005\b\u0000\u0000\u008f\u0090\u0003\u001a\r"+
-		"\u0000\u0090\u0091\u0005\t\u0000\u0000\u0091\u00a4\u0001\u0000\u0000\u0000"+
-		"\u0092\u0094\u0005\u0012\u0000\u0000\u0093\u0095\u0005\u0004\u0000\u0000"+
-		"\u0094\u0093\u0001\u0000\u0000\u0000\u0094\u0095\u0001\u0000\u0000\u0000"+
-		"\u0095\u0096\u0001\u0000\u0000\u0000\u0096\u00a4\u0003\u001a\r\t\u0097"+
-		"\u0098\u0005\u0011\u0000\u0000\u0098\u00a4\u0003\u001a\r\b\u0099\u009a"+
-		"\u0005\u001b\u0000\u0000\u009a\u00a4\u0003\u001a\r\u0004\u009b\u009c\u0005"+
-		"\u001e\u0000\u0000\u009c\u009e\u0005\b\u0000\u0000\u009d\u009f\u0003\u001c"+
-		"\u000e\u0000\u009e\u009d\u0001\u0000\u0000\u0000\u009e\u009f\u0001\u0000"+
-		"\u0000\u0000\u009f\u00a0\u0001\u0000\u0000\u0000\u00a0\u00a4\u0005\t\u0000"+
-		"\u0000\u00a1\u00a4\u0005\u001e\u0000\u0000\u00a2\u00a4\u0005\u001f\u0000"+
-		"\u0000\u00a3\u008d\u0001\u0000\u0000\u0000\u00a3\u0092\u0001\u0000\u0000"+
-		"\u0000\u00a3\u0097\u0001\u0000\u0000\u0000\u00a3\u0099\u0001\u0000\u0000"+
-		"\u0000\u00a3\u009b\u0001\u0000\u0000\u0000\u00a3\u00a1\u0001\u0000\u0000"+
-		"\u0000\u00a3\u00a2\u0001\u0000\u0000\u0000\u00a4\u00b0\u0001\u0000\u0000"+
-		"\u0000\u00a5\u00a6\n\u0007\u0000\u0000\u00a6\u00a7\u0007\u0000\u0000\u0000"+
-		"\u00a7\u00af\u0003\u001a\r\b\u00a8\u00a9\n\u0006\u0000\u0000\u00a9\u00aa"+
-		"\u0007\u0001\u0000\u0000\u00aa\u00af\u0003\u001a\r\u0007\u00ab\u00ac\n"+
-		"\u0005\u0000\u0000\u00ac\u00ad\u0007\u0002\u0000\u0000\u00ad\u00af\u0003"+
-		"\u001a\r\u0006\u00ae\u00a5\u0001\u0000\u0000\u0000\u00ae\u00a8\u0001\u0000"+
-		"\u0000\u0000\u00ae\u00ab\u0001\u0000\u0000\u0000\u00af\u00b2\u0001\u0000"+
-		"\u0000\u0000\u00b0\u00ae\u0001\u0000\u0000\u0000\u00b0\u00b1\u0001\u0000"+
-		"\u0000\u0000\u00b1\u001b\u0001\u0000\u0000\u0000\u00b2\u00b0\u0001\u0000"+
-		"\u0000\u0000\u00b3\u00b8\u0003\u001a\r\u0000\u00b4\u00b5\u0005\u000b\u0000"+
-		"\u0000\u00b5\u00b7\u0003\u001a\r\u0000\u00b6\u00b4\u0001\u0000\u0000\u0000"+
-		"\u00b7\u00ba\u0001\u0000\u0000\u0000\u00b8\u00b6\u0001\u0000\u0000\u0000"+
-		"\u00b8\u00b9\u0001\u0000\u0000\u0000\u00b9\u001d\u0001\u0000\u0000\u0000"+
-		"\u00ba\u00b8\u0001\u0000\u0000\u0000\u00bb\u00bd\u0005\u0012\u0000\u0000"+
-		"\u00bc\u00be\u0005\u0004\u0000\u0000\u00bd\u00bc\u0001\u0000\u0000\u0000"+
-		"\u00bd\u00be\u0001\u0000\u0000\u0000\u00be\u00c0\u0001\u0000\u0000\u0000"+
-		"\u00bf\u00bb\u0001\u0000\u0000\u0000\u00bf\u00c0\u0001\u0000\u0000\u0000"+
-		"\u00c0\u00c1\u0001\u0000\u0000\u0000\u00c1\u00c2\u0005\u001c\u0000\u0000"+
-		"\u00c2\u001f\u0001\u0000\u0000\u0000\u00c3\u00c4\u0005\u001d\u0000\u0000"+
-		"\u00c4\u00c5\u0005\u0002\u0000\u0000\u00c5!\u0001\u0000\u0000\u0000\u0014"+
-		"%37=JOXcgow\u0088\u0094\u009e\u00a3\u00ae\u00b0\u00b8\u00bd\u00bf";
+		"\u000e\u0007\u0000|\u0015\u0001\u0000\u0000\u0000}~\u0005#\u0000\u0000"+
+		"~\u007f\u0005\u0006\u0000\u0000\u007f\u0080\u0003\u001a\r\u0000\u0080"+
+		"\u0081\u0005\u0002\u0000\u0000\u0081\u0089\u0001\u0000\u0000\u0000\u0082"+
+		"\u0083\u0005\u0011\u0000\u0000\u0083\u0084\u0003\u001a\r\u0000\u0084\u0085"+
+		"\u0005\u0006\u0000\u0000\u0085\u0086\u0003\u001a\r\u0000\u0086\u0087\u0005"+
+		"\u0002\u0000\u0000\u0087\u0089\u0001\u0000\u0000\u0000\u0088}\u0001\u0000"+
+		"\u0000\u0000\u0088\u0082\u0001\u0000\u0000\u0000\u0089\u0017\u0001\u0000"+
+		"\u0000\u0000\u008a\u008b\u0003\u001a\r\u0000\u008b\u008c\u0005\u0002\u0000"+
+		"\u0000\u008c\u0019\u0001\u0000\u0000\u0000\u008d\u008e\u0006\r\uffff\uffff"+
+		"\u0000\u008e\u00a7\u0005$\u0000\u0000\u008f\u00a7\u0005\"\u0000\u0000"+
+		"\u0090\u00a7\u0005#\u0000\u0000\u0091\u0092\u0005\b\u0000\u0000\u0092"+
+		"\u0093\u0003\u001a\r\u0000\u0093\u0094\u0005\t\u0000\u0000\u0094\u00a7"+
+		"\u0001\u0000\u0000\u0000\u0095\u0096\u0005\u0012\u0000\u0000\u0096\u00a7"+
+		"\u0003\u001a\r\u000b\u0097\u0098\u0005\u0013\u0000\u0000\u0098\u00a7\u0003"+
+		"\u001a\r\n\u0099\u009a\u0005#\u0000\u0000\u009a\u009c\u0005\b\u0000\u0000"+
+		"\u009b\u009d\u0003\u001c\u000e\u0000\u009c\u009b\u0001\u0000\u0000\u0000"+
+		"\u009c\u009d\u0001\u0000\u0000\u0000\u009d\u009e\u0001\u0000\u0000\u0000"+
+		"\u009e\u00a7\u0005\t\u0000\u0000\u009f\u00a1\u0005\u001e\u0000\u0000\u00a0"+
+		"\u00a2\u0005\u0004\u0000\u0000\u00a1\u00a0\u0001\u0000\u0000\u0000\u00a1"+
+		"\u00a2\u0001\u0000\u0000\u0000\u00a2\u00a3\u0001\u0000\u0000\u0000\u00a3"+
+		"\u00a7\u0003\u001a\r\u0002\u00a4\u00a5\u0005\u0011\u0000\u0000\u00a5\u00a7"+
+		"\u0003\u001a\r\u0001\u00a6\u008d\u0001\u0000\u0000\u0000\u00a6\u008f\u0001"+
+		"\u0000\u0000\u0000\u00a6\u0090\u0001\u0000\u0000\u0000\u00a6\u0091\u0001"+
+		"\u0000\u0000\u0000\u00a6\u0095\u0001\u0000\u0000\u0000\u00a6\u0097\u0001"+
+		"\u0000\u0000\u0000\u00a6\u0099\u0001\u0000\u0000\u0000\u00a6\u009f\u0001"+
+		"\u0000\u0000\u0000\u00a6\u00a4\u0001\u0000\u0000\u0000\u00a7\u00bc\u0001"+
+		"\u0000\u0000\u0000\u00a8\u00a9\n\t\u0000\u0000\u00a9\u00aa\u0007\u0000"+
+		"\u0000\u0000\u00aa\u00bb\u0003\u001a\r\n\u00ab\u00ac\n\b\u0000\u0000\u00ac"+
+		"\u00ad\u0007\u0001\u0000\u0000\u00ad\u00bb\u0003\u001a\r\t\u00ae\u00af"+
+		"\n\u0007\u0000\u0000\u00af\u00b0\u0007\u0002\u0000\u0000\u00b0\u00bb\u0003"+
+		"\u001a\r\b\u00b1\u00b2\n\u0006\u0000\u0000\u00b2\u00b3\u0007\u0003\u0000"+
+		"\u0000\u00b3\u00bb\u0003\u001a\r\u0007\u00b4\u00b5\n\u0005\u0000\u0000"+
+		"\u00b5\u00b6\u0005\u001c\u0000\u0000\u00b6\u00bb\u0003\u001a\r\u0006\u00b7"+
+		"\u00b8\n\u0004\u0000\u0000\u00b8\u00b9\u0005\u001d\u0000\u0000\u00b9\u00bb"+
+		"\u0003\u001a\r\u0005\u00ba\u00a8\u0001\u0000\u0000\u0000\u00ba\u00ab\u0001"+
+		"\u0000\u0000\u0000\u00ba\u00ae\u0001\u0000\u0000\u0000\u00ba\u00b1\u0001"+
+		"\u0000\u0000\u0000\u00ba\u00b4\u0001\u0000\u0000\u0000\u00ba\u00b7\u0001"+
+		"\u0000\u0000\u0000\u00bb\u00be\u0001\u0000\u0000\u0000\u00bc\u00ba\u0001"+
+		"\u0000\u0000\u0000\u00bc\u00bd\u0001\u0000\u0000\u0000\u00bd\u001b\u0001"+
+		"\u0000\u0000\u0000\u00be\u00bc\u0001\u0000\u0000\u0000\u00bf\u00c4\u0003"+
+		"\u001a\r\u0000\u00c0\u00c1\u0005\u000b\u0000\u0000\u00c1\u00c3\u0003\u001a"+
+		"\r\u0000\u00c2\u00c0\u0001\u0000\u0000\u0000\u00c3\u00c6\u0001\u0000\u0000"+
+		"\u0000\u00c4\u00c2\u0001\u0000\u0000\u0000\u00c4\u00c5\u0001\u0000\u0000"+
+		"\u0000\u00c5\u001d\u0001\u0000\u0000\u0000\u00c6\u00c4\u0001\u0000\u0000"+
+		"\u0000\u00c7\u00c9\u0005\u001e\u0000\u0000\u00c8\u00ca\u0005\u0004\u0000"+
+		"\u0000\u00c9\u00c8\u0001\u0000\u0000\u0000\u00c9\u00ca\u0001\u0000\u0000"+
+		"\u0000\u00ca\u00cc\u0001\u0000\u0000\u0000\u00cb\u00c7\u0001\u0000\u0000"+
+		"\u0000\u00cb\u00cc\u0001\u0000\u0000\u0000\u00cc\u00cd\u0001\u0000\u0000"+
+		"\u0000\u00cd\u00ce\u0007\u0004\u0000\u0000\u00ce\u001f\u0001\u0000\u0000"+
+		"\u0000\u00cf\u00d0\u0005!\u0000\u0000\u00d0\u00d1\u0005\u0002\u0000\u0000"+
+		"\u00d1!\u0001\u0000\u0000\u0000\u0014%37=JOXcgow\u0088\u009c\u00a1\u00a6"+
+		"\u00ba\u00bc\u00c4\u00c9\u00cb";
 	public static final ATN _ATN =
 		new ATNDeserializer().deserialize(_serializedATN.toCharArray());
 	static {
