@@ -38,7 +38,7 @@ function evaluate(input: string): { result: number, error: string | null } {
         const tree = parser.prog();
         
         debugLog('Visiting parse tree');
-        evaluator.visit(tree);
+        evaluator.compile(tree);
         
         if (SHOW_VM_INSTRUCTIONS || DEBUG) {
             console.log("\nVM Instructions:");
