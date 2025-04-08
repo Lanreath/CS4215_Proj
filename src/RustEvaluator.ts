@@ -511,7 +511,6 @@ export class RustEvaluatorVisitor
      * Reset all state for a new evaluation
      */
     public reset(): void {
-        this.releaseAllResources();
         // Clear variable tracking
         this.variableStates = new Map();
         this.referenceMap = new Map();
