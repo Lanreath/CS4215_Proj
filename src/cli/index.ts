@@ -144,7 +144,7 @@ function handleCommand(cmd: string): boolean {
 
 // Write a test function with input files test.txt and result.txt
 // Test cases are separated by ``` in the input file
-// and the expected result is in the result file separated by newlines (number, bool, null, fail)
+// and the expected result is in the result file separated by newlines (number, bool, error)
 function testRustCode(inputFile: string, resultFile: string): void {
     const input = fs.readFileSync(inputFile, 'utf8');
     const expectedResults = fs.readFileSync(resultFile, 'utf8').split('\n').map(line => line.trim()).filter(line => line !== '');
@@ -154,14 +154,18 @@ function testRustCode(inputFile: string, resultFile: string): void {
         console.error("Number of test cases and expected results do not match.");
         return;
     }
-    for (let i = 5; i < testCases.length; i++) {
+    for (let i = 0; i < testCases.length; i++) {
         const testCase = testCases[i];
         const expectedResult = expectedResults[i];
         console.log(`Test case ${i + 1}:`);
         console.log(testCase);
         const { result, error } = evaluate(testCase);
         if (error) {
-            throw new Error(`Error in test case ${i + 1}: ${error}`);
+            if (expectedResult === 'error') {
+                console.log(`Test passed: expected error: ${error}`);
+            } else {
+                console.error(`Test failed: expected ${expectedResult}, got error: ${error}`);
+            }
         } else {
             if (String(result) === expectedResult) {
                 console.log("Test passed");

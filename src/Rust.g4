@@ -23,7 +23,7 @@ variableDeclaration
     ;
 
 functionDeclaration
-    : 'fn' name=IDENTIFIER '(' paramList? ')'  '->' returnType=type? functionBody=block
+    : 'fn' name=IDENTIFIER '(' paramList? ')'  ('->' returnType=type)? functionBody=block
     ;
 
 paramList

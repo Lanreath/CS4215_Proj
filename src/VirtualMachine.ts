@@ -560,7 +560,7 @@ export class VirtualMachine {
         }
         
         // Store the value in memory
-        this.view.setFloat64(addr, value, true);
+        this.view.setInt32(addr, value, true);
     }
 
 }

@@ -445,8 +445,6 @@ export class RustEvaluatorVisitor
 
             return funcDef.declaredReturnType;
         } else if (expr instanceof rp.ReferenceExprContext) {
-            const targetExpr = expr._target;
-            const targetType = this.getExpressionType(targetExpr);
             return expr._mutFlag ? Type.REF_MUT : Type.REF;
         } else if (expr instanceof rp.DereferenceExprContext) {
             // Get the underlying type for dereferenced expressions
@@ -737,9 +735,11 @@ export class RustEvaluatorVisitor
 
         // Store the reference in memory
         // IMPORTANT: Store the ADDRESS of the variable, not its valueget's address
+        // Load the address of the target variable
         const refAddr = this.vm.allocateVariable();
         this.vm.pushInstruction(InstructionTag.LDCN, targetState.address);
         this.vm.pushInstruction(InstructionTag.STORE, refAddr);
+        this.vm.pushInstruction(InstructionTag.LOAD, refAddr);
 
         // Create a variable state for the reference
         const typeInfo = new TypeInfo(mutable ? Type.REF_MUT : Type.REF, target);
@@ -761,7 +761,7 @@ export class RustEvaluatorVisitor
     // Visit a parse tree produced by RustParser#dereferenceExpr
     visitDereferenceExpr(ctx: rp.DereferenceExprContext): number {
         // First visit the target expression to get the reference
-        const refAddr = this.visit(ctx._target);
+        this.visit(ctx._target);
 
         // If the target is an identifier, check if it's a reference
         if (ctx._target instanceof rp.IdentifierContext) {
@@ -964,9 +964,9 @@ export class RustEvaluatorVisitor
             throw new Error(`Function ${funcName} expects ${params.length} arguments but got ${args.length}`);
         }
 
-        // Push arguments onto the stack in the correct order for the function
-        // For a function add(x, y), x should be at params[0], y at params[1]
-        for (let i = 0; i < args.length; i++) {
+        // Push arguments onto the stack in the reverse order
+        // For a function add(x, y), the stack will be: [y, x]
+        for (let i = args.length - 1; i >= 0; i--) {
             // Evaluate the argument and push it onto the stack
             this.visit(args[i]);
 
@@ -1028,7 +1028,6 @@ export class RustEvaluatorVisitor
 
         if (params) {
             // Create parameter variables in order
-            let paramIndex = 0;
             for (const param of params.param()) {
                 const paramName = param._name?.text;
                 const paramType = param.type();
@@ -1037,9 +1036,8 @@ export class RustEvaluatorVisitor
                 }
 
                 // Register parameter variables in the correct order
-                const type = this.processParameter(paramName, paramType, paramIndex);
+                const type = this.processParameter(paramName, paramType);
                 fnDef.paramTypes.set(paramName, type);
-                paramIndex++;
             }
         }
 
@@ -1074,18 +1072,20 @@ export class RustEvaluatorVisitor
     private processParameter(
         paramName: string,
         paramType: rp.TypeContext,
-        paramIndex: number
     ): Type {
         // Extract TypeInfo from the parameter type context
         const typeInfo = TypeInfo.fromTypeContext(paramType);
 
-        // Allocate memory for the parameter (x is 1024, y is 1028)
-        const addr = 1024 + (paramIndex * 4); // Using fixed addresses for params
+        // Allocate memory for the parameter
+        const addr = this.vm.allocateVariable();
 
         // Create a variable state with the proper type info
         const varState = new VariableState(false, addr, typeInfo);
         this.variableStates.set(paramName, varState);
         this.currentScope().set(paramName, true);
+        // Store the argument at the allocated address during the function call
+        this.vm.pushInstruction(InstructionTag.STORE, addr);
+        // TODO: Assign ref mapping if needed
 
         return typeInfo.baseType;
     }
@@ -1580,9 +1580,6 @@ export class RustEvaluator extends BasicEvaluator {
 
             // Send the result to the REPL
             this.conductor.sendOutput(`Result: ${result}`);
-            visitor.releaseAllResources();
-            visitor.variableStates = new Map();
-            visitor.scopes = [new Map()];
             console.log("[EVALUATOR] ======== EVALUATION COMPLETE ========");
         } catch (error) {
             if (error instanceof Error) {

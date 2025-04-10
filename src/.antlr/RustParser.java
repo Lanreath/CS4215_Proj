@@ -118,14 +118,6 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_prog; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterProg(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitProg(this);
-		}
 	}
 
 	public final ProgContext prog() throws RecognitionException {
@@ -197,14 +189,6 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_statement; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterStatement(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitStatement(this);
-		}
 	}
 
 	public final StatementContext statement() throws RecognitionException {
@@ -299,14 +283,6 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_returnStatement; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterReturnStatement(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitReturnStatement(this);
-		}
 	}
 
 	public final ReturnStatementContext returnStatement() throws RecognitionException {
@@ -359,14 +335,6 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_variableDeclaration; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterVariableDeclaration(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitVariableDeclaration(this);
-		}
 	}
 
 	public final VariableDeclarationContext variableDeclaration() throws RecognitionException {
@@ -432,14 +400,6 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_functionDeclaration; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterFunctionDeclaration(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitFunctionDeclaration(this);
-		}
 	}
 
 	public final FunctionDeclarationContext functionDeclaration() throws RecognitionException {
@@ -467,13 +427,13 @@ public class RustParser extends Parser {
 
 			setState(76);
 			match(T__8);
-			setState(77);
-			match(T__9);
 			setState(79);
 			_errHandler.sync(this);
 			_la = _input.LA(1);
-			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 7516192768L) != 0)) {
+			if (_la==T__9) {
 				{
+				setState(77);
+				match(T__9);
 				setState(78);
 				((FunctionDeclarationContext)_localctx).returnType = type();
 				}
@@ -506,14 +466,6 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_paramList; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterParamList(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitParamList(this);
-		}
 	}
 
 	public final ParamListContext paramList() throws RecognitionException {
@@ -565,14 +517,6 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_param; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterParam(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitParam(this);
-		}
 	}
 
 	public final ParamContext param() throws RecognitionException {
@@ -615,14 +559,6 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_block; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterBlock(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitBlock(this);
-		}
 	}
 
 	public final BlockContext block() throws RecognitionException {
@@ -693,14 +629,6 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_ifStatement; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterIfStatement(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitIfStatement(this);
-		}
 	}
 
 	public final IfStatementContext ifStatement() throws RecognitionException {
@@ -753,14 +681,6 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_elseBranch; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterElseBranch(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitElseBranch(this);
-		}
 	}
 
 	public final ElseBranchContext elseBranch() throws RecognitionException {
@@ -815,14 +735,6 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_whileStatement; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterWhileStatement(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitWhileStatement(this);
-		}
 	}
 
 	public final WhileStatementContext whileStatement() throws RecognitionException {
@@ -873,14 +785,6 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,i);
 		}
 		public DereferenceAssignmentContext(AssignmentContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterDereferenceAssignment(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitDereferenceAssignment(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class StandardAssignmentContext extends AssignmentContext {
@@ -889,14 +793,6 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,0);
 		}
 		public StandardAssignmentContext(AssignmentContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterStandardAssignment(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitStandardAssignment(this);
-		}
 	}
 
 	public final AssignmentContext assignment() throws RecognitionException {
@@ -960,14 +856,6 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_expressionStatement; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterExpressionStatement(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitExpressionStatement(this);
-		}
 	}
 
 	public final ExpressionStatementContext expressionStatement() throws RecognitionException {
@@ -1009,27 +897,11 @@ public class RustParser extends Parser {
 	public static class IdentifierContext extends ExpressionContext {
 		public TerminalNode IDENTIFIER() { return getToken(RustParser.IDENTIFIER, 0); }
 		public IdentifierContext(ExpressionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterIdentifier(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitIdentifier(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class BoolContext extends ExpressionContext {
 		public TerminalNode BOOL() { return getToken(RustParser.BOOL, 0); }
 		public BoolContext(ExpressionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterBool(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitBool(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class DereferenceExprContext extends ExpressionContext {
@@ -1038,14 +910,6 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,0);
 		}
 		public DereferenceExprContext(ExpressionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterDereferenceExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitDereferenceExpr(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class ReferenceExprContext extends ExpressionContext {
@@ -1055,14 +919,6 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,0);
 		}
 		public ReferenceExprContext(ExpressionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterReferenceExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitReferenceExpr(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class EqualityOpContext extends ExpressionContext {
@@ -1074,14 +930,6 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,i);
 		}
 		public EqualityOpContext(ExpressionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterEqualityOp(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitEqualityOp(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class UnaryOpContext extends ExpressionContext {
@@ -1089,27 +937,11 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,0);
 		}
 		public UnaryOpContext(ExpressionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterUnaryOp(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitUnaryOp(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class IntContext extends ExpressionContext {
 		public TerminalNode INT() { return getToken(RustParser.INT, 0); }
 		public IntContext(ExpressionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterInt(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitInt(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class ParenExprContext extends ExpressionContext {
@@ -1117,14 +949,6 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,0);
 		}
 		public ParenExprContext(ExpressionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterParenExpr(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitParenExpr(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class AddSubOpContext extends ExpressionContext {
@@ -1136,14 +960,6 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,i);
 		}
 		public AddSubOpContext(ExpressionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterAddSubOp(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitAddSubOp(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class LogicalAndOpContext extends ExpressionContext {
@@ -1155,14 +971,6 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,i);
 		}
 		public LogicalAndOpContext(ExpressionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterLogicalAndOp(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitLogicalAndOp(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class LogicalOrOpContext extends ExpressionContext {
@@ -1174,14 +982,6 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,i);
 		}
 		public LogicalOrOpContext(ExpressionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterLogicalOrOp(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitLogicalOrOp(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class FunctionCallContext extends ExpressionContext {
@@ -1190,14 +990,6 @@ public class RustParser extends Parser {
 			return getRuleContext(ArgListContext.class,0);
 		}
 		public FunctionCallContext(ExpressionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterFunctionCall(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitFunctionCall(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class MulDivOpContext extends ExpressionContext {
@@ -1209,14 +1001,6 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,i);
 		}
 		public MulDivOpContext(ExpressionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterMulDivOp(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitMulDivOp(this);
-		}
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class LogicalNotOpContext extends ExpressionContext {
@@ -1224,14 +1008,6 @@ public class RustParser extends Parser {
 			return getRuleContext(ExpressionContext.class,0);
 		}
 		public LogicalNotOpContext(ExpressionContext ctx) { copyFrom(ctx); }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterLogicalNotOp(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitLogicalNotOp(this);
-		}
 	}
 
 	public final ExpressionContext expression() throws RecognitionException {
@@ -1524,14 +1300,6 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_argList; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterArgList(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitArgList(this);
-		}
 	}
 
 	public final ArgListContext argList() throws RecognitionException {
@@ -1580,14 +1348,6 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_type; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterType(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitType(this);
-		}
 	}
 
 	public final TypeContext type() throws RecognitionException {
@@ -1646,14 +1406,6 @@ public class RustParser extends Parser {
 			super(parent, invokingState);
 		}
 		@Override public int getRuleIndex() { return RULE_breakStatement; }
-		@Override
-		public void enterRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).enterBreakStatement(this);
-		}
-		@Override
-		public void exitRule(ParseTreeListener listener) {
-			if ( listener instanceof RustListener ) ((RustListener)listener).exitBreakStatement(this);
-		}
 	}
 
 	public final BreakStatementContext breakStatement() throws RecognitionException {
@@ -1765,8 +1517,8 @@ public class RustParser extends Parser {
 		"\u0000BC\u0005\u0006\u0000\u0000CD\u0003\u001a\r\u0000DE\u0005\u0002\u0000"+
 		"\u0000E\u0007\u0001\u0000\u0000\u0000FG\u0005\u0007\u0000\u0000GH\u0005"+
 		"#\u0000\u0000HJ\u0005\b\u0000\u0000IK\u0003\n\u0005\u0000JI\u0001\u0000"+
-		"\u0000\u0000JK\u0001\u0000\u0000\u0000KL\u0001\u0000\u0000\u0000LM\u0005"+
-		"\t\u0000\u0000MO\u0005\n\u0000\u0000NP\u0003\u001e\u000f\u0000ON\u0001"+
+		"\u0000\u0000JK\u0001\u0000\u0000\u0000KL\u0001\u0000\u0000\u0000LO\u0005"+
+		"\t\u0000\u0000MN\u0005\n\u0000\u0000NP\u0003\u001e\u000f\u0000OM\u0001"+
 		"\u0000\u0000\u0000OP\u0001\u0000\u0000\u0000PQ\u0001\u0000\u0000\u0000"+
 		"QR\u0003\u000e\u0007\u0000R\t\u0001\u0000\u0000\u0000SX\u0003\f\u0006"+
 		"\u0000TU\u0005\u000b\u0000\u0000UW\u0003\f\u0006\u0000VT\u0001\u0000\u0000"+
