@@ -100,3 +100,18 @@ fn apply_twice(f: fn(i64) -> i64, x: i64) -> i64 {
 fn square(x: i64) -> i64 { x * x }
 apply_twice(square, true);
 ```
+let x : i64 = true;
+x;
+```
+let a: i64 = 10;
+let b: bool = true;
+let c: i64 = a + b;
+c;
+```
+let x: i64 = 42;
+let y: bool = !x;
+```
+let x: i64 = 5;
+let y: bool = true;
+let z: bool = x == y;
+```

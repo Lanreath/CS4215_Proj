@@ -92,6 +92,7 @@ function handleCommand(cmd: string): boolean {
             console.log("  .multi         - Enter multi-line mode (default)");
             console.log("  .end           - End multi-line mode and execute code");
             console.log("  Empty line     - End multi-line mode and execute code");
+            console.log("  .test          - Run tests from test.txt and compare with result.txt");
             return true;
 
         case 'multi':
@@ -150,29 +151,102 @@ function testRustCode(inputFile: string, resultFile: string): void {
     const expectedResults = fs.readFileSync(resultFile, 'utf8').split('\n').map(line => line.trim()).filter(line => line !== '');
 
     const testCases = input.split(/```/).map(code => code.trim()).filter(code => code !== '');
+    
     if (testCases.length !== expectedResults.length) {
-        console.error("Number of test cases and expected results do not match.");
-        return;
+        console.error(`Warning: Number of test cases (${testCases.length}) and expected results (${expectedResults.length}) do not match.`);
     }
-    for (let i = 0; i < testCases.length; i++) {
+    
+    // Test results tracking
+    const testResults = {
+        passed: 0,
+        failed: 0,
+        errors: [] as {testNumber: number, testCase: string, expected: string, actual: string, error?: string}[]
+    };
+    
+    console.log("\n=== RUNNING TESTS ===\n");
+    
+    // Run each test case separately
+    for (let i = 0; i < testCases.length && i < expectedResults.length; i++) {
         const testCase = testCases[i];
         const expectedResult = expectedResults[i];
-        console.log(`Test case ${i + 1}:`);
-        console.log(testCase);
-        const { result, error } = evaluate(testCase);
-        if (error) {
-            if (expectedResult === 'error') {
-                console.log(`Test passed: expected error: ${error}`);
+        
+        try {
+            // Reset the VM for each test
+            vm.reset();
+            evaluator.reset();
+            
+            console.log(`Test case ${i + 1}:`);
+            console.log("--------------------");
+            console.log(testCase);
+            console.log("--------------------");
+            
+            const { result, error } = evaluate(testCase);
+            
+            if (error) {
+                if (expectedResult === 'error') {
+                    console.log(`✅ PASS: Expected error and got: ${error}\n`);
+                    testResults.passed++;
+                } else {
+                    console.error(`❌ FAIL: Expected ${expectedResult}, but got error: ${error}\n`);
+                    testResults.failed++;
+                    testResults.errors.push({
+                        testNumber: i + 1,
+                        testCase,
+                        expected: expectedResult,
+                        actual: `Error: ${error}`,
+                        error
+                    });
+                }
             } else {
-                console.error(`Test failed: expected ${expectedResult}, got error: ${error}`);
+                if (String(result) === expectedResult) {
+                    console.log(`✅ PASS: Result ${result} matches expected ${expectedResult}\n`);
+                    testResults.passed++;
+                } else {
+                    console.error(`❌ FAIL: Expected ${expectedResult}, but got ${result}\n`);
+                    testResults.failed++;
+                    testResults.errors.push({
+                        testNumber: i + 1,
+                        testCase,
+                        expected: expectedResult,
+                        actual: String(result)
+                    });
+                }
             }
-        } else {
-            if (String(result) === expectedResult) {
-                console.log("Test passed");
-            } else {
-                throw new Error(`Test failed: expected ${expectedResult}, got ${result}`);
-            }
+        } catch (unexpectedError) {
+            // Catch any uncaught exceptions to prevent test runner from crashing
+            const errorMessage = unexpectedError instanceof Error ? unexpectedError.message : String(unexpectedError);
+            console.error(`❌ CRASH: Unexpected error in test runner: ${errorMessage}\n`);
+            testResults.failed++;
+            testResults.errors.push({
+                testNumber: i + 1,
+                testCase,
+                expected: expectedResult,
+                actual: "Test runner crashed",
+                error: errorMessage
+            });
         }
+    }
+    
+    // Report summary
+    console.log("\n=== TEST SUMMARY ===");
+    console.log(`Total tests: ${testResults.passed + testResults.failed}`);
+    console.log(`Passed: ${testResults.passed}`);
+    console.log(`Failed: ${testResults.failed}`);
+    
+    // Show details of failed tests
+    if (testResults.errors.length > 0) {
+        console.log("\n=== FAILED TESTS ===");
+        testResults.errors.forEach(error => {
+            console.log(`\nTest #${error.testNumber}:`);
+            console.log("--------------------");
+            console.log(error.testCase);
+            console.log("--------------------");
+            console.log(`Expected: ${error.expected}`);
+            console.log(`Actual: ${error.actual}`);
+            if (error.error) {
+                console.log(`Error: ${error.error}`);
+            }
+        });
     }
 }
 
