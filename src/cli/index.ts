@@ -12,7 +12,7 @@ const evaluator = new RustEvaluatorVisitor(vm);
 
 // CLI configuration
 const DEBUG = false;
-const SHOW_VM_INSTRUCTIONS = false;
+const SHOW_VM_INSTRUCTIONS = true;
 
 // Buffer for multi-line input
 let codeBuffer: string[] = [];
@@ -166,7 +166,7 @@ function testRustCode(inputFile: string, resultFile: string): void {
     console.log("\n=== RUNNING TESTS ===\n");
     
     // Run each test case separately
-    for (let i = 15; i < testCases.length && i < expectedResults.length; i++) {
+    for (let i = 0; i < testCases.length && i < expectedResults.length; i++) {
         const testCase = testCases[i];
         const expectedResult = expectedResults[i];
         

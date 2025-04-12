@@ -470,7 +470,7 @@ export class VirtualMachine {
                         }
                         console.log(`[VM] CALL: Calling function at ${instr.value}`);
                         // Store the address of the next instruction to return to
-                        this.pushReturn(this.pc + 1); 
+                        this.pushReturn(this.pc); 
                         this.pc = instr.value;
                         break;
                     }

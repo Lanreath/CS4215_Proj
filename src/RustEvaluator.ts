@@ -65,7 +65,7 @@ export class Type {
             }
             const type = this.fromTypeContext(refType._baseType);
             // Return a reference type
-            return new Type(type.baseType, undefined, isMutable);
+            return new Type(type, undefined, isMutable);
         } else if (ctx.atomicType()) {
             let primitiveType = ctx.atomicType()
             const typeName = primitiveType.getText();
@@ -468,7 +468,7 @@ export class RustEvaluatorVisitor
                 throw new Error(`Variable ${varName} is not defined`);
             }
 
-            console.log(`[TYPE CHECK] Variable ${varName} has ${state.typeInfo.baseType instanceof Type ? "referenced" : "" }type ${state.typeInfo.baseType}`);
+            console.log(`[TYPE CHECK] Variable ${varName} has ${state.typeInfo.baseType instanceof Type ? "referenced" : ""}type ${state.typeInfo.baseType}`);
             return state.typeInfo;
         } else if (expr instanceof rp.FunctionCallContext) {
             const funcName = expr.IDENTIFIER().getText();
@@ -801,6 +801,7 @@ export class RustEvaluatorVisitor
         // First visit the target expression to get the reference
         this.visit(ctx._target);
 
+        // TODO: Add support for nested dereferences
         // If the target is an identifier, check if it's a reference
         if (ctx._target instanceof rp.IdentifierContext) {
             const refName = ctx._target.getText();
@@ -811,9 +812,10 @@ export class RustEvaluatorVisitor
                 throw new Error(`Variable ${refName} not found`);
             }
 
-            if (!(refState.typeInfo.baseType instanceof Type)) {
-                throw new BorrowError(`${refName} is not a reference`);
-            }
+            // if (!(refState.typeInfo.baseType instanceof Type)) {
+            //     console.log(refState);
+            //     throw new BorrowError(`${refName} is not a reference`);
+            // }
 
             // Get the target variable name from the reference map
             const target = this.referenceMap.has(refName);
@@ -840,49 +842,43 @@ export class RustEvaluatorVisitor
             throw new BorrowError("Invalid dereference assignment syntax");
         }
 
-        // Extract the reference name from the dereference expression
-        let refName: string;
-
-        // The structure depends on your grammar, so handle different possibilites
-        if (ctx._target instanceof rp.DereferenceExprContext) {
-            // Get the reference variable from the dereference expression
-            const refExpr =
-                ctx._target._target ||
-                (ctx._target.expression && ctx._target.expression());
-
-            if (!refExpr) {
-                throw new BorrowError("Invalid dereference target");
-            }
-
-            refName = refExpr.getText();
-        } else {
-            throw new BorrowError(
-                "Cannot determine reference in dereference assignment"
+        // Type check
+        const targetType = this.getExpressionType(ctx._target);
+        const valueType = this.getExpressionType(ctx._value);
+        if (!(targetType.baseType instanceof Type) || !valueType.equals(targetType.baseType)) {
+            throw new Error(
+                `Type mismatch in dereference assignment: ${targetType} vs ${valueType}`
             );
         }
+
+        // Extract the reference name from the dereference expression
+        let refName: string = ctx._target.getText();
 
         // Check if this variable is a reference
         if (!this.isReference(refName)) {
             throw new BorrowError(`${refName} is not a reference`);
         }
 
-        // Get the target variable name
-        const target = this.referenceMap.has(refName);
-        if (!target) {
-            throw new BorrowError(`${refName} does not point to a valid variable`);
-        }
-
-        // Check if this is a mutable reference
-        if (!this.isMutableReference(refName)) {
-            throw new BorrowError(
-                `Cannot assign through immutable reference ${refName}`
-            );
-        }
-
+        //TODO: Remove duplicate checks
         // Get the target state
         const targetState = this.lookupVariable(refName);
         if (!targetState) {
             throw new BorrowError(`Target of reference ${refName} no longer exists`);
+        }
+
+        if (!this.currentFunctionReturnType) {
+            // Get the target variable name
+            const target = this.referenceMap.has(refName);
+            if (!target) {
+                throw new BorrowError(`${refName} does not point to a valid variable`);
+            }
+
+            // Check if this is a mutable reference
+            if (!this.isMutableReference(refName)) {
+                throw new BorrowError(
+                    `Cannot assign through immutable reference ${refName}`
+                );
+            }
         }
 
         // Evaluate the value expression
@@ -998,7 +994,7 @@ export class RustEvaluatorVisitor
             const argType = this.getExpressionType(arg);
             const paramName = params[i]._name?.text;
             const paramType = funcDef.paramTypes.get(paramName);
-            
+
             // Verify type compatibility
             if (!argType.equals(paramType)) {
                 throw new Error(`Type mismatch in function call: Parameter ${params[i]} expects ${paramType} but got ${argType}`);
@@ -1112,11 +1108,11 @@ export class RustEvaluatorVisitor
         const varState = new VariableState(false, addr, typeInfo);
         this.variableStates.set(paramName, varState);
         this.currentScope().set(paramName, true);
-        // Store the argument at the allocated address during the function call
-        this.vm.pushInstruction(InstructionTag.STORE, addr);
         if (typeInfo.baseType instanceof Type) {
             this.referenceMap.set(paramName, null);
         }
+        // Store the argument at the allocated address during the function call
+        this.vm.pushInstruction(InstructionTag.STORE, addr);
 
         return typeInfo;
     }
@@ -1374,7 +1370,7 @@ export class RustEvaluatorVisitor
         const leftType = this.getExpressionType(ctx.expression(0));
         const rightType = this.getExpressionType(ctx.expression(1));
 
-        if (!leftType.equals(new Type(Primitive.BOOL)) || !rightType.equals(new Type(Primitive.BOOL))){
+        if (!leftType.equals(new Type(Primitive.BOOL)) || !rightType.equals(new Type(Primitive.BOOL))) {
             throw new Error(`Logical OR (||) requires boolean operands, got ${leftType} || ${rightType}`);
         }
 

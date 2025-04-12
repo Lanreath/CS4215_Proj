@@ -39,7 +39,7 @@ block
     ;
 
 ifStatement
-    : 'if' condition=expression thenBlock=block elseBranch? ';'
+    : 'if' condition=expression thenBlock=block elseBranch?
     ;
 
 elseBranch
