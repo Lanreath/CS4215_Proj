@@ -824,6 +824,7 @@ export class RustParser extends antlr.Parser {
                     case 1:
                         {
                         localContext = new MulDivOpContext(new ExpressionContext(parentContext, parentState));
+                        (localContext as MulDivOpContext)._left = previousContext;
                         this.pushNewRecursionContext(localContext, _startState, RustParser.RULE_expression);
                         this.state = 170;
                         if (!(this.precpred(this.context, 9))) {
@@ -840,12 +841,13 @@ export class RustParser extends antlr.Parser {
                             this.consume();
                         }
                         this.state = 172;
-                        this.expression(10);
+                        (localContext as MulDivOpContext)._right = this.expression(10);
                         }
                         break;
                     case 2:
                         {
                         localContext = new AddSubOpContext(new ExpressionContext(parentContext, parentState));
+                        (localContext as AddSubOpContext)._left = previousContext;
                         this.pushNewRecursionContext(localContext, _startState, RustParser.RULE_expression);
                         this.state = 173;
                         if (!(this.precpred(this.context, 8))) {
@@ -862,34 +864,36 @@ export class RustParser extends antlr.Parser {
                             this.consume();
                         }
                         this.state = 175;
-                        this.expression(9);
+                        (localContext as AddSubOpContext)._right = this.expression(9);
                         }
                         break;
                     case 3:
                         {
-                        localContext = new EqualityOpContext(new ExpressionContext(parentContext, parentState));
+                        localContext = new ComparatorOpContext(new ExpressionContext(parentContext, parentState));
+                        (localContext as ComparatorOpContext)._left = previousContext;
                         this.pushNewRecursionContext(localContext, _startState, RustParser.RULE_expression);
                         this.state = 176;
                         if (!(this.precpred(this.context, 7))) {
                             throw this.createFailedPredicateException("this.precpred(this.context, 7)");
                         }
                         this.state = 177;
-                        (localContext as EqualityOpContext)._op = this.tokenStream.LT(1);
+                        (localContext as ComparatorOpContext)._op = this.tokenStream.LT(1);
                         _la = this.tokenStream.LA(1);
                         if(!((((_la) & ~0x1F) === 0 && ((1 << _la) & 62914560) !== 0))) {
-                            (localContext as EqualityOpContext)._op = this.errorHandler.recoverInline(this);
+                            (localContext as ComparatorOpContext)._op = this.errorHandler.recoverInline(this);
                         }
                         else {
                             this.errorHandler.reportMatch(this);
                             this.consume();
                         }
                         this.state = 178;
-                        this.expression(8);
+                        (localContext as ComparatorOpContext)._right = this.expression(8);
                         }
                         break;
                     case 4:
                         {
                         localContext = new EqualityOpContext(new ExpressionContext(parentContext, parentState));
+                        (localContext as EqualityOpContext)._left = previousContext;
                         this.pushNewRecursionContext(localContext, _startState, RustParser.RULE_expression);
                         this.state = 179;
                         if (!(this.precpred(this.context, 6))) {
@@ -906,12 +910,13 @@ export class RustParser extends antlr.Parser {
                             this.consume();
                         }
                         this.state = 181;
-                        this.expression(7);
+                        (localContext as EqualityOpContext)._right = this.expression(7);
                         }
                         break;
                     case 5:
                         {
                         localContext = new LogicalAndOpContext(new ExpressionContext(parentContext, parentState));
+                        (localContext as LogicalAndOpContext)._left = previousContext;
                         this.pushNewRecursionContext(localContext, _startState, RustParser.RULE_expression);
                         this.state = 182;
                         if (!(this.precpred(this.context, 5))) {
@@ -920,12 +925,13 @@ export class RustParser extends antlr.Parser {
                         this.state = 183;
                         (localContext as LogicalAndOpContext)._op = this.match(RustParser.T__27);
                         this.state = 184;
-                        this.expression(6);
+                        (localContext as LogicalAndOpContext)._right = this.expression(6);
                         }
                         break;
                     case 6:
                         {
                         localContext = new LogicalOrOpContext(new ExpressionContext(parentContext, parentState));
+                        (localContext as LogicalOrOpContext)._left = previousContext;
                         this.pushNewRecursionContext(localContext, _startState, RustParser.RULE_expression);
                         this.state = 185;
                         if (!(this.precpred(this.context, 4))) {
@@ -934,7 +940,7 @@ export class RustParser extends antlr.Parser {
                         this.state = 186;
                         (localContext as LogicalOrOpContext)._op = this.match(RustParser.T__28);
                         this.state = 187;
-                        this.expression(5);
+                        (localContext as LogicalOrOpContext)._right = this.expression(5);
                         }
                         break;
                     }
@@ -1899,7 +1905,9 @@ export class ReferenceExprContext extends ExpressionContext {
     }
 }
 export class EqualityOpContext extends ExpressionContext {
+    public _left?: ExpressionContext;
     public _op?: Token | null;
+    public _right?: ExpressionContext;
     public constructor(ctx: ExpressionContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
@@ -2010,7 +2018,9 @@ export class ParenExprContext extends ExpressionContext {
     }
 }
 export class AddSubOpContext extends ExpressionContext {
+    public _left?: ExpressionContext;
     public _op?: Token | null;
+    public _right?: ExpressionContext;
     public constructor(ctx: ExpressionContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
@@ -2042,8 +2052,45 @@ export class AddSubOpContext extends ExpressionContext {
         }
     }
 }
-export class LogicalAndOpContext extends ExpressionContext {
+export class ComparatorOpContext extends ExpressionContext {
+    public _left?: ExpressionContext;
     public _op?: Token | null;
+    public _right?: ExpressionContext;
+    public constructor(ctx: ExpressionContext) {
+        super(ctx.parent, ctx.invokingState);
+        super.copyFrom(ctx);
+    }
+    public expression(): ExpressionContext[];
+    public expression(i: number): ExpressionContext | null;
+    public expression(i?: number): ExpressionContext[] | ExpressionContext | null {
+        if (i === undefined) {
+            return this.getRuleContexts(ExpressionContext);
+        }
+
+        return this.getRuleContext(i, ExpressionContext);
+    }
+    public override enterRule(listener: RustListener): void {
+        if(listener.enterComparatorOp) {
+             listener.enterComparatorOp(this);
+        }
+    }
+    public override exitRule(listener: RustListener): void {
+        if(listener.exitComparatorOp) {
+             listener.exitComparatorOp(this);
+        }
+    }
+    public override accept<Result>(visitor: RustVisitor<Result>): Result | null {
+        if (visitor.visitComparatorOp) {
+            return visitor.visitComparatorOp(this);
+        } else {
+            return visitor.visitChildren(this);
+        }
+    }
+}
+export class LogicalAndOpContext extends ExpressionContext {
+    public _left?: ExpressionContext;
+    public _op?: Token | null;
+    public _right?: ExpressionContext;
     public constructor(ctx: ExpressionContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
@@ -2076,7 +2123,9 @@ export class LogicalAndOpContext extends ExpressionContext {
     }
 }
 export class LogicalOrOpContext extends ExpressionContext {
+    public _left?: ExpressionContext;
     public _op?: Token | null;
+    public _right?: ExpressionContext;
     public constructor(ctx: ExpressionContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);
@@ -2138,7 +2187,9 @@ export class FunctionCallContext extends ExpressionContext {
     }
 }
 export class MulDivOpContext extends ExpressionContext {
+    public _left?: ExpressionContext;
     public _op?: Token | null;
+    public _right?: ExpressionContext;
     public constructor(ctx: ExpressionContext) {
         super(ctx.parent, ctx.invokingState);
         super.copyFrom(ctx);

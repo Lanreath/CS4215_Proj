@@ -26,6 +26,7 @@ import { UnaryOpContext } from "./RustParser.js";
 import { IntContext } from "./RustParser.js";
 import { ParenExprContext } from "./RustParser.js";
 import { AddSubOpContext } from "./RustParser.js";
+import { ComparatorOpContext } from "./RustParser.js";
 import { LogicalAndOpContext } from "./RustParser.js";
 import { LogicalOrOpContext } from "./RustParser.js";
 import { FunctionCallContext } from "./RustParser.js";
@@ -195,6 +196,13 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      * @return the visitor result
      */
     visitAddSubOp?: (ctx: AddSubOpContext) => Result;
+    /**
+     * Visit a parse tree produced by the `comparatorOp`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitComparatorOp?: (ctx: ComparatorOpContext) => Result;
     /**
      * Visit a parse tree produced by the `logicalAndOp`
      * labeled alternative in `RustParser.expression`.

@@ -920,7 +920,9 @@ public class RustParser extends Parser {
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class EqualityOpContext extends ExpressionContext {
+		public ExpressionContext left;
 		public Token op;
+		public ExpressionContext right;
 		public List<ExpressionContext> expression() {
 			return getRuleContexts(ExpressionContext.class);
 		}
@@ -950,7 +952,9 @@ public class RustParser extends Parser {
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class AddSubOpContext extends ExpressionContext {
+		public ExpressionContext left;
 		public Token op;
+		public ExpressionContext right;
 		public List<ExpressionContext> expression() {
 			return getRuleContexts(ExpressionContext.class);
 		}
@@ -960,8 +964,23 @@ public class RustParser extends Parser {
 		public AddSubOpContext(ExpressionContext ctx) { copyFrom(ctx); }
 	}
 	@SuppressWarnings("CheckReturnValue")
-	public static class LogicalAndOpContext extends ExpressionContext {
+	public static class ComparatorOpContext extends ExpressionContext {
+		public ExpressionContext left;
 		public Token op;
+		public ExpressionContext right;
+		public List<ExpressionContext> expression() {
+			return getRuleContexts(ExpressionContext.class);
+		}
+		public ExpressionContext expression(int i) {
+			return getRuleContext(ExpressionContext.class,i);
+		}
+		public ComparatorOpContext(ExpressionContext ctx) { copyFrom(ctx); }
+	}
+	@SuppressWarnings("CheckReturnValue")
+	public static class LogicalAndOpContext extends ExpressionContext {
+		public ExpressionContext left;
+		public Token op;
+		public ExpressionContext right;
 		public List<ExpressionContext> expression() {
 			return getRuleContexts(ExpressionContext.class);
 		}
@@ -972,7 +991,9 @@ public class RustParser extends Parser {
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class LogicalOrOpContext extends ExpressionContext {
+		public ExpressionContext left;
 		public Token op;
+		public ExpressionContext right;
 		public List<ExpressionContext> expression() {
 			return getRuleContexts(ExpressionContext.class);
 		}
@@ -991,7 +1012,9 @@ public class RustParser extends Parser {
 	}
 	@SuppressWarnings("CheckReturnValue")
 	public static class MulDivOpContext extends ExpressionContext {
+		public ExpressionContext left;
 		public Token op;
+		public ExpressionContext right;
 		public List<ExpressionContext> expression() {
 			return getRuleContexts(ExpressionContext.class);
 		}
@@ -1161,6 +1184,7 @@ public class RustParser extends Parser {
 					case 1:
 						{
 						_localctx = new MulDivOpContext(new ExpressionContext(_parentctx, _parentState));
+						((MulDivOpContext)_localctx).left = _prevctx;
 						pushNewRecursionContext(_localctx, _startState, RULE_expression);
 						setState(170);
 						if (!(precpred(_ctx, 9))) throw new FailedPredicateException(this, "precpred(_ctx, 9)");
@@ -1176,12 +1200,13 @@ public class RustParser extends Parser {
 							consume();
 						}
 						setState(172);
-						expression(10);
+						((MulDivOpContext)_localctx).right = expression(10);
 						}
 						break;
 					case 2:
 						{
 						_localctx = new AddSubOpContext(new ExpressionContext(_parentctx, _parentState));
+						((AddSubOpContext)_localctx).left = _prevctx;
 						pushNewRecursionContext(_localctx, _startState, RULE_expression);
 						setState(173);
 						if (!(precpred(_ctx, 8))) throw new FailedPredicateException(this, "precpred(_ctx, 8)");
@@ -1197,20 +1222,21 @@ public class RustParser extends Parser {
 							consume();
 						}
 						setState(175);
-						expression(9);
+						((AddSubOpContext)_localctx).right = expression(9);
 						}
 						break;
 					case 3:
 						{
-						_localctx = new EqualityOpContext(new ExpressionContext(_parentctx, _parentState));
+						_localctx = new ComparatorOpContext(new ExpressionContext(_parentctx, _parentState));
+						((ComparatorOpContext)_localctx).left = _prevctx;
 						pushNewRecursionContext(_localctx, _startState, RULE_expression);
 						setState(176);
 						if (!(precpred(_ctx, 7))) throw new FailedPredicateException(this, "precpred(_ctx, 7)");
 						setState(177);
-						((EqualityOpContext)_localctx).op = _input.LT(1);
+						((ComparatorOpContext)_localctx).op = _input.LT(1);
 						_la = _input.LA(1);
 						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 62914560L) != 0)) ) {
-							((EqualityOpContext)_localctx).op = (Token)_errHandler.recoverInline(this);
+							((ComparatorOpContext)_localctx).op = (Token)_errHandler.recoverInline(this);
 						}
 						else {
 							if ( _input.LA(1)==Token.EOF ) matchedEOF = true;
@@ -1218,12 +1244,13 @@ public class RustParser extends Parser {
 							consume();
 						}
 						setState(178);
-						expression(8);
+						((ComparatorOpContext)_localctx).right = expression(8);
 						}
 						break;
 					case 4:
 						{
 						_localctx = new EqualityOpContext(new ExpressionContext(_parentctx, _parentState));
+						((EqualityOpContext)_localctx).left = _prevctx;
 						pushNewRecursionContext(_localctx, _startState, RULE_expression);
 						setState(179);
 						if (!(precpred(_ctx, 6))) throw new FailedPredicateException(this, "precpred(_ctx, 6)");
@@ -1239,31 +1266,33 @@ public class RustParser extends Parser {
 							consume();
 						}
 						setState(181);
-						expression(7);
+						((EqualityOpContext)_localctx).right = expression(7);
 						}
 						break;
 					case 5:
 						{
 						_localctx = new LogicalAndOpContext(new ExpressionContext(_parentctx, _parentState));
+						((LogicalAndOpContext)_localctx).left = _prevctx;
 						pushNewRecursionContext(_localctx, _startState, RULE_expression);
 						setState(182);
 						if (!(precpred(_ctx, 5))) throw new FailedPredicateException(this, "precpred(_ctx, 5)");
 						setState(183);
 						((LogicalAndOpContext)_localctx).op = match(T__27);
 						setState(184);
-						expression(6);
+						((LogicalAndOpContext)_localctx).right = expression(6);
 						}
 						break;
 					case 6:
 						{
 						_localctx = new LogicalOrOpContext(new ExpressionContext(_parentctx, _parentState));
+						((LogicalOrOpContext)_localctx).left = _prevctx;
 						pushNewRecursionContext(_localctx, _startState, RULE_expression);
 						setState(185);
 						if (!(precpred(_ctx, 4))) throw new FailedPredicateException(this, "precpred(_ctx, 4)");
 						setState(186);
 						((LogicalOrOpContext)_localctx).op = match(T__28);
 						setState(187);
-						expression(5);
+						((LogicalOrOpContext)_localctx).right = expression(5);
 						}
 						break;
 					}

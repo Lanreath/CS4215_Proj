@@ -194,7 +194,6 @@ export class RustEvaluatorVisitor
             // Handle references
             if (this.referenceMap.has(name)) {
                 this.releaseBorrow(name);
-                this.referenceMap.delete(name);
             }
 
             // Get the state
@@ -420,9 +419,6 @@ export class RustEvaluatorVisitor
         if (state.borrowers.length > 0) {
             throw new BorrowError(`Cannot use ${varName} while it is borrowed`);
         }
-
-        state.state = BorrowState.Moved;
-        console.log(`[OWNERSHIP] Variable ${varName} moved into function`);
     }
 
     private isMutableReference(refName: string): boolean {
@@ -448,15 +444,39 @@ export class RustEvaluatorVisitor
             return new Type(Primitive.I64);
         } else if (expr instanceof rp.BoolContext) {
             return new Type(Primitive.BOOL);
-        } else if (expr instanceof rp.LogicalNotOpContext ||
+        } else if (expr instanceof rp.LogicalNotOpContext) {
+            if (!this.getExpressionType(expr.expression()).equals(new Type(Primitive.BOOL))) {
+                throw new Error(`Logical NOT operator expects a boolean expression`);
+            }
+            return new Type(Primitive.BOOL);
+        } else if (
             expr instanceof rp.LogicalAndOpContext ||
-            expr instanceof rp.LogicalOrOpContext) {
+            expr instanceof rp.LogicalOrOpContext || expr instanceof rp.EqualityOpContext) {
+            const leftType = this.getExpressionType(expr._left);
+            const rightType = this.getExpressionType(expr._right);
+            if (
+                !leftType.equals(new Type(Primitive.BOOL)) ||
+                !rightType.equals(new Type(Primitive.BOOL))
+            ) {
+                throw new Error(`Logical operator expects boolean expressions`);
+            }
             return new Type(Primitive.BOOL);
-        } else if (expr instanceof rp.EqualityOpContext) {
-            return new Type(Primitive.BOOL);
+        } else if (expr instanceof rp.UnaryOpContext) {
+            if (!this.getExpressionType(expr.expression()).equals(new Type(Primitive.I64))) {
+                throw new Error(`Unary operator expects an integer expression`);
+            }
+            return new Type(Primitive.I64);
         } else if (expr instanceof rp.AddSubOpContext ||
-            expr instanceof rp.MulDivOpContext ||
-            expr instanceof rp.UnaryOpContext) {
+            expr instanceof rp.MulDivOpContext || expr instanceof rp.ComparatorOpContext
+        ) {
+            const leftType = this.getExpressionType(expr._left);
+            const rightType = this.getExpressionType(expr._right);
+            if (
+                !leftType.equals(new Type(Primitive.I64)) ||
+                !rightType.equals(new Type(Primitive.I64))
+            ) {
+                throw new Error(`Arithmetic operator expects integer expressions`);
+            }
             return new Type(Primitive.I64);
         } else if (expr instanceof rp.ParenExprContext) {
             return this.getExpressionType(expr.expression());
@@ -607,6 +627,7 @@ export class RustEvaluatorVisitor
         if (ctx.type()) {
             typeInfo = Type.fromTypeContext(ctx.type());
         } else {
+            // TODO: Type inference
             typeInfo = new Type(Primitive.I64);
         }
 
@@ -624,6 +645,7 @@ export class RustEvaluatorVisitor
         if (ctx.expression()) {
             const expr = ctx.expression();
             const initType = this.getExpressionType(expr);
+            console.log(`[COMPILE] Initializer type: ${initType.toString()}`);
 
             if (!new Type(initType).equals(typeInfo)) {
                 throw new Error(`Type mismatch: cannot initialize ${varName}: ${typeInfo.toString()} with value of type ${initType}`);
@@ -753,6 +775,7 @@ export class RustEvaluatorVisitor
         // Get the target variable name
         const target = ctx._target.getText();
         const mutable = ctx._mutFlag ? true : false;
+        const refName = `ref_to_${target}_${Date.now()}`;
 
         // TODO: Add support for nested references
         // Check if the target variable exists
@@ -763,13 +786,12 @@ export class RustEvaluatorVisitor
 
         // Check borrowing rules
         if (mutable) {
-            this.borrowMutably(target, `ref_to_${target}_${Date.now()}`);
+            this.borrowMutably(target, refName);
         } else {
-            this.borrowImmutably(target, `ref_to_${target}_${Date.now()}`);
+            this.borrowImmutably(target, refName);
         }
 
         // Create a unique name for the reference
-        const refName = `ref_to_${target}_${Date.now()}`;
 
         // Store the reference in memory
         // IMPORTANT: Store the ADDRESS of the variable, not its valueget's address
@@ -786,9 +808,6 @@ export class RustEvaluatorVisitor
         // Record the reference in the current scope
         this.variableStates.set(refName, refState);
         this.currentScope().set(refName, true);
-
-        // Record the reference relationship
-        this.referenceMap.set(refName, target);
 
         console.log(`[BORROW] Created reference ${refName} to ${target}`);
 
@@ -859,7 +878,6 @@ export class RustEvaluatorVisitor
             throw new BorrowError(`${refName} is not a reference`);
         }
 
-        //TODO: Remove duplicate checks
         // Get the target state
         const targetState = this.lookupVariable(refName);
         if (!targetState) {
@@ -885,7 +903,8 @@ export class RustEvaluatorVisitor
         this.visit(ctx._value);
 
         // Push instruction to store the new value at the target's address
-        this.vm.pushInstruction(InstructionTag.STORE, targetState.address);
+        this.vm.pushInstruction(InstructionTag.LOAD, targetState.address);
+        this.vm.pushInstruction(InstructionTag.PUT);
 
         return 0;
     }
@@ -946,8 +965,7 @@ export class RustEvaluatorVisitor
             this.visit(ctx.expression());
             returnType = this.getExpressionType(ctx.expression());
 
-            // TODO: Check if the return type matches
-            if (returnType !== this.currentFunctionReturnType) {
+            if (!returnType.equals(this.currentFunctionReturnType)) {
                 throw new Error(
                     `Function return type mismatch: expected ${this.currentFunctionReturnType}, got ${returnType}`
                 );
@@ -987,6 +1005,7 @@ export class RustEvaluatorVisitor
             throw new Error(`Function ${funcName} expects ${params.length} arguments but got ${args.length}`);
         }
 
+        this.enterScope();
         // Push arguments onto the stack in the reverse order
         // For a function add(x, y), the stack will be: [y, x]
         for (let i = args.length - 1; i >= 0; i--) {
@@ -1000,22 +1019,13 @@ export class RustEvaluatorVisitor
                 throw new Error(`Type mismatch in function call: Parameter ${params[i]} expects ${paramType} but got ${argType}`);
             }
 
-            // TODO: Add support for references
-            // If the argument is an identifier, we need to check ownership
-            if (arg instanceof rp.IdentifierContext) {
-                const argName = arg.getText();
-                const isParamRef = paramType.baseType instanceof Type;
-                if (!isParamRef) {
-                    this.checkArgAccess(argName);
-                }
-            }
-
             // Evaluate the argument and push it onto the stack
             this.visit(arg);
         }
 
         // Generate the function call instruction
         this.vm.pushInstruction(InstructionTag.CALL, funcDef.label);
+        this.exitScope();
 
         return 0;
     }
@@ -1252,11 +1262,18 @@ export class RustEvaluatorVisitor
     }
 
     visitAddSubOp(ctx: rp.AddSubOpContext): number {
+        // Type check
+        const leftType = this.getExpressionType(ctx._left)
+        const rightType = this.getExpressionType(ctx._right)
+        if (!leftType.equals(new Type(Primitive.I64)) || !rightType.equals(new Type(Primitive.I64))) {
+            throw new Error(`Arithmetic operator expects integer expressions`);
+        }
+
         // First visit the left operand
-        this.visit(ctx.expression(0));
+        this.visit(ctx._left);
 
         // Then visit the right operand
-        this.visit(ctx.expression(1));
+        this.visit(ctx._right);
 
         // Generate the operation instruction
         const op = ctx._op.text;
@@ -1270,11 +1287,16 @@ export class RustEvaluatorVisitor
     }
 
     visitMulDivOp(ctx: rp.MulDivOpContext): number {
+        // Type check
+        const leftType = this.getExpressionType(ctx._left)
+        const rightType = this.getExpressionType(ctx._right)
+        if (!leftType.equals(new Type(Primitive.I64)) || !rightType.equals(new Type(Primitive.I64))) {
+            throw new Error(`Arithmetic operator expects integer expressions`);
+        }
         // First visit the left operand
-        this.visit(ctx.expression(0));
-
+        this.visit(ctx._left);
         // Then visit the right operand
-        this.visit(ctx.expression(1));
+        this.visit(ctx._right);
 
         // Generate the operation instruction
         const op = ctx._op.text;
@@ -1289,33 +1311,31 @@ export class RustEvaluatorVisitor
 
     // Visit a parse tree produced by RustParser#unaryOp
     visitUnaryOp(ctx: rp.UnaryOpContext): number {
+        // Type check
+        const exprType = this.getExpressionType(ctx.expression());
+        if (!exprType.equals(new Type(Primitive.I64))) {
+            throw new Error(`Unary operator expects integer expressions`);
+        }
+
         // First, evaluate the expression being negated
         this.visit(ctx.expression());
 
         // Get the operator (should be '-')
-        const op = ctx.getChild(0).getText();
-
-        if (op === '-') {
-            // Generate negate instruction
-            this.vm.pushInstruction(InstructionTag.NEG);
-            console.log(`[COMPILE] Unary negation`);
-        } else {
-            throw new Error(`Unsupported unary operator: ${op}`);
-        }
+        this.vm.pushInstruction(InstructionTag.NEG);
+        console.log(`[COMPILE] Unary negation`);
 
         return 0;
     }
 
     // Visit a parse tree produced by RustParser#logicalNotOp
     visitLogicalNotOp(ctx: rp.LogicalNotOpContext): number {
+        // Type check
+        const exprType = this.getExpressionType(ctx.expression());
+        if (!exprType.equals(new Type(Primitive.BOOL))) {
+            throw new Error(`Logical NOT operator expects boolean expressions`);
+        }
         // Evaluate the operand
         this.visit(ctx.expression());
-
-        // Check the operand's type
-        const operandType = this.getExpressionType(ctx.expression());
-        if (!operandType.equals(new Type(Primitive.BOOL))) {
-            throw new Error(`Logical NOT (!) can only be applied to boolean values, got ${operandType}`);
-        }
 
         // Push the logical NOT instruction
         this.vm.pushInstruction(InstructionTag.NOT);
@@ -1326,12 +1346,11 @@ export class RustEvaluatorVisitor
 
     // Visit a parse tree produced by RustParser#logicalAndOp
     visitLogicalAndOp(ctx: rp.LogicalAndOpContext): number {
-        // Check types first
-        const leftType = this.getExpressionType(ctx.expression(0));
-        const rightType = this.getExpressionType(ctx.expression(1));
-
+        // Type check
+        const leftType = this.getExpressionType(ctx._left);
+        const rightType = this.getExpressionType(ctx._right);
         if (!leftType.equals(new Type(Primitive.BOOL)) || !rightType.equals(new Type(Primitive.BOOL))) {
-            throw new Error(`Logical AND (&&) requires boolean operands, got ${leftType} && ${rightType}`);
+            throw new Error(`Logical AND operator expects boolean expressions`);
         }
 
         // Generate a short-circuit label
@@ -1339,14 +1358,14 @@ export class RustEvaluatorVisitor
         const endLabel = `and_end_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
         // Evaluate the left operand
-        this.visit(ctx.expression(0));
+        this.visit(ctx._left);
 
         // If left operand is false, short-circuit (result is false)
         this.vm.pushInstruction(InstructionTag.DUP); // Duplicate the value for the condition check
         this.vm.pushJof(shortCircuitLabel); // Jump if false
 
         // Evaluate the right operand
-        this.visit(ctx.expression(1));
+        this.visit(ctx._right);
 
         // Perform the AND operation
         this.vm.pushInstruction(InstructionTag.AND);
@@ -1366,27 +1385,25 @@ export class RustEvaluatorVisitor
 
     // Visit a parse tree produced by RustParser#logicalOrOp
     visitLogicalOrOp(ctx: rp.LogicalOrOpContext): number {
-        // Check operand types first
-        const leftType = this.getExpressionType(ctx.expression(0));
-        const rightType = this.getExpressionType(ctx.expression(1));
-
+        // Type check
+        const leftType = this.getExpressionType(ctx._left);
+        const rightType = this.getExpressionType(ctx._right);
         if (!leftType.equals(new Type(Primitive.BOOL)) || !rightType.equals(new Type(Primitive.BOOL))) {
-            throw new Error(`Logical OR (||) requires boolean operands, got ${leftType} || ${rightType}`);
+            throw new Error(`Logical OR operator expects boolean expressions`);
         }
-
         // Generate a short-circuit label
         const shortCircuitLabel = `or_short_circuit_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
         const endLabel = `or_end_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
         // Evaluate the left operand
-        this.visit(ctx.expression(0));
+        this.visit(ctx._left);
 
         // If left operand is true, short-circuit (result is true)
         this.vm.pushInstruction(InstructionTag.DUP); // Duplicate the value for the condition check
         this.vm.pushJof(shortCircuitLabel); // Jump if not false (i.e., true)
 
         // Evaluate the right operand
-        this.visit(ctx.expression(1));
+        this.visit(ctx._right);
 
         // Perform the OR operation
         this.vm.pushInstruction(InstructionTag.OR);
@@ -1412,25 +1429,17 @@ export class RustEvaluatorVisitor
         return 0;
     }
 
-    // Enhance visitEqualityOp for better type checking
-    visitEqualityOp(ctx: rp.EqualityOpContext): number {
-        // Evaluate the left and right expressions
-        const leftType = this.getExpressionType(ctx.expression(0));
-        const rightType = this.getExpressionType(ctx.expression(1));
-
-        // Type checking - both operands must be of the same type for comparison
-        if (!leftType.equals(rightType)) {
-            throw new Error(`Type mismatch in comparison: cannot compare ${leftType} with ${rightType}`);
-        }
-
-        // Only numeric and boolean types can be compared
-        if (!leftType.equals(new Type(Primitive.I64)) && !leftType.equals(new Type(Primitive.BOOL))) {
-            throw new Error(`Invalid operand types for comparison: ${leftType}`);
+    visitComparatorOp(ctx: rp.ComparatorOpContext): number {
+        // Type check
+        const leftType = this.getExpressionType(ctx._left)
+        const rightType = this.getExpressionType(ctx._right)
+        if (!leftType.equals(new Type(Primitive.I64)) || !rightType.equals(new Type(Primitive.I64))) {
+            throw new Error(`Comparison operator expects integer expressions`);
         }
 
         // Now actually evaluate the expressions
-        this.visit(ctx.expression(0));
-        this.visit(ctx.expression(1));
+        this.visit(ctx._left);
+        this.visit(ctx._right);
 
         const op = ctx._op.text;
         console.log(`[COMPILE] Comparison operation: ${op}`);
@@ -1449,6 +1458,30 @@ export class RustEvaluatorVisitor
             case "<=":
                 this.vm.pushInstruction(InstructionTag.LE);
                 break;
+            default:
+                throw new Error(`Unknown comparison operator: ${op}`);
+        }
+
+        return 0;
+    }
+
+    // Enhance visitEqualityOp for better type checking
+    visitEqualityOp(ctx: rp.EqualityOpContext): number {
+        // Type check
+        const leftType = this.getExpressionType(ctx._left)
+        const rightType = this.getExpressionType(ctx._right)
+        if (!leftType.equals(new Type(Primitive.I64)) || !rightType.equals(new Type(Primitive.I64))) {
+            throw new Error(`Equality operator expects integer expressions`);
+        }
+
+        // Now actually evaluate the expressions
+        this.visit(ctx._left);
+        this.visit(ctx._right);
+
+        const op = ctx._op.text;
+        console.log(`[COMPILE] Equality operation: ${op}`);
+        // Push the appropriate instruction
+        switch (op) {
             case "==":
                 this.vm.pushInstruction(InstructionTag.EQ);
                 break;

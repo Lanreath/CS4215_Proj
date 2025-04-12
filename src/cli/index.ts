@@ -12,7 +12,7 @@ const evaluator = new RustEvaluatorVisitor(vm);
 
 // CLI configuration
 const DEBUG = false;
-const SHOW_VM_INSTRUCTIONS = true;
+const SHOW_VM_INSTRUCTIONS = false;
 
 // Buffer for multi-line input
 let codeBuffer: string[] = [];

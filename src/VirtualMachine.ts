@@ -16,6 +16,7 @@ export enum InstructionTag {
     LOAD = "LOAD",
     STORE = "STORE",
     FETCH = "FETCH",
+    PUT = "PUT",
     FREE = "FREE",
     CALL = "CALL",
     RETURN = "RETURN",
@@ -454,6 +455,16 @@ export class VirtualMachine {
                         // Push the value onto the stack
                         this.pushOperand(value);
                         console.log(`[VM] FETCH: Loaded ${value} from address ${addr}`);
+                        break;
+                    }
+                    case InstructionTag.PUT: {
+                        // Pop an address and a value from the stack
+                        const addr = this.popOperand();
+                        const value = this.popOperand();
+                        
+                        // Store the value at that address
+                        this.store(addr, value);
+                        console.log(`[VM] PUT: Stored ${value} at address ${addr}`);
                         break;
                     }
                     case InstructionTag.FREE: {

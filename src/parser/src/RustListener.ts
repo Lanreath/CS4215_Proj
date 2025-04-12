@@ -26,6 +26,7 @@ import { UnaryOpContext } from "./RustParser.js";
 import { IntContext } from "./RustParser.js";
 import { ParenExprContext } from "./RustParser.js";
 import { AddSubOpContext } from "./RustParser.js";
+import { ComparatorOpContext } from "./RustParser.js";
 import { LogicalAndOpContext } from "./RustParser.js";
 import { LogicalOrOpContext } from "./RustParser.js";
 import { FunctionCallContext } from "./RustParser.js";
@@ -295,6 +296,18 @@ export class RustListener implements ParseTreeListener {
      * @param ctx the parse tree
      */
     exitAddSubOp?: (ctx: AddSubOpContext) => void;
+    /**
+     * Enter a parse tree produced by the `comparatorOp`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     */
+    enterComparatorOp?: (ctx: ComparatorOpContext) => void;
+    /**
+     * Exit a parse tree produced by the `comparatorOp`
+     * labeled alternative in `RustParser.expression`.
+     * @param ctx the parse tree
+     */
+    exitComparatorOp?: (ctx: ComparatorOpContext) => void;
     /**
      * Enter a parse tree produced by the `logicalAndOp`
      * labeled alternative in `RustParser.expression`.

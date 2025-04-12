@@ -68,12 +68,12 @@ expression
     | '(' expression ')'      # parenExpr
     | '-' expression          # unaryOp
     | '!' expression          # logicalNotOp
-    | expression op=('*'|'/') expression # mulDivOp
-    | expression op=('+'|'-') expression # addSubOp
-    | expression op=('<'|'<='|'>'|'>=') expression # equalityOp
-    | expression op=('=='|'!=') expression # equalityOp
-    | expression op='&&' expression      # logicalAndOp
-    | expression op='||' expression      # logicalOrOp
+    | left=expression op=('*'|'/') right=expression # mulDivOp
+    | left=expression op=('+'|'-') right=expression # addSubOp
+    | left=expression op=('<'|'<='|'>'|'>=') right=expression # comparatorOp
+    | left=expression op=('=='|'!=') right=expression # equalityOp
+    | left=expression op='&&' right=expression      # logicalAndOp
+    | left=expression op='||' right=expression      # logicalOrOp
     | IDENTIFIER '(' argList? ')'        # functionCall   
     | '&' mutFlag='mut'? target=expression # referenceExpr
     | '*' target=expression              # dereferenceExpr
