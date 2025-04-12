@@ -33,6 +33,8 @@ import { MulDivOpContext } from "./RustParser.js";
 import { LogicalNotOpContext } from "./RustParser.js";
 import { ArgListContext } from "./RustParser.js";
 import { TypeContext } from "./RustParser.js";
+import { ReferenceTypeContext } from "./RustParser.js";
+import { AtomicTypeContext } from "./RustParser.js";
 import { BreakStatementContext } from "./RustParser.js";
 
 
@@ -373,6 +375,26 @@ export class RustListener implements ParseTreeListener {
      * @param ctx the parse tree
      */
     exitType?: (ctx: TypeContext) => void;
+    /**
+     * Enter a parse tree produced by `RustParser.referenceType`.
+     * @param ctx the parse tree
+     */
+    enterReferenceType?: (ctx: ReferenceTypeContext) => void;
+    /**
+     * Exit a parse tree produced by `RustParser.referenceType`.
+     * @param ctx the parse tree
+     */
+    exitReferenceType?: (ctx: ReferenceTypeContext) => void;
+    /**
+     * Enter a parse tree produced by `RustParser.atomicType`.
+     * @param ctx the parse tree
+     */
+    enterAtomicType?: (ctx: AtomicTypeContext) => void;
+    /**
+     * Exit a parse tree produced by `RustParser.atomicType`.
+     * @param ctx the parse tree
+     */
+    exitAtomicType?: (ctx: AtomicTypeContext) => void;
     /**
      * Enter a parse tree produced by `RustParser.breakStatement`.
      * @param ctx the parse tree

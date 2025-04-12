@@ -33,6 +33,8 @@ import { MulDivOpContext } from "./RustParser.js";
 import { LogicalNotOpContext } from "./RustParser.js";
 import { ArgListContext } from "./RustParser.js";
 import { TypeContext } from "./RustParser.js";
+import { ReferenceTypeContext } from "./RustParser.js";
+import { AtomicTypeContext } from "./RustParser.js";
 import { BreakStatementContext } from "./RustParser.js";
 
 
@@ -240,6 +242,18 @@ export class RustVisitor<Result> extends AbstractParseTreeVisitor<Result> {
      * @return the visitor result
      */
     visitType?: (ctx: TypeContext) => Result;
+    /**
+     * Visit a parse tree produced by `RustParser.referenceType`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitReferenceType?: (ctx: ReferenceTypeContext) => Result;
+    /**
+     * Visit a parse tree produced by `RustParser.atomicType`.
+     * @param ctx the parse tree
+     * @return the visitor result
+     */
+    visitAtomicType?: (ctx: AtomicTypeContext) => Result;
     /**
      * Visit a parse tree produced by `RustParser.breakStatement`.
      * @param ctx the parse tree

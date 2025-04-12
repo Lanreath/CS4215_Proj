@@ -83,10 +83,16 @@ argList
     : expression (',' expression)*
     ;
 
-// Updated to include both integer and boolean types
 type
-    : (refFlag='&' mutFlag='mut'?)? ('i64' | 'bool')
+    : referenceType
+    | atomicType
     ;
+
+referenceType
+    : '&' mutFlag='mut'? baseType=type
+    ;
+
+atomicType: 'i64' | 'bool';
 
 breakStatement
     : 'break' ';'
