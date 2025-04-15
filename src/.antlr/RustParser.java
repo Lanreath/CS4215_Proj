@@ -42,7 +42,7 @@ public class RustParser extends Parser {
 			null, "'return'", "';'", "'let'", "'mut'", "':'", "'='", "'fn'", "'('", 
 			"')'", "'->'", "','", "'{'", "'}'", "'if'", "'else'", "'while'", "'*'", 
 			"'-'", "'!'", "'/'", "'+'", "'<'", "'<='", "'>'", "'>='", "'=='", "'!='", 
-			"'&&'", "'||'", "'&'", "'i64'", "'bool'", "'break'"
+			"'&&'", "'||'", "'&'", "'i32'", "'bool'", "'break'"
 		};
 	}
 	private static final String[] _LITERAL_NAMES = makeLiteralNames();

@@ -11,7 +11,7 @@ import { RustVisitor } from "./parser/src/RustVisitor";
 import { InstructionTag, VirtualMachine } from "./VirtualMachine";
 
 export enum Primitive {
-    I64 = "i64",
+    i32 = "i32",
     BOOL = "bool",
     VOID = "void",
     ERROR = "error",
@@ -69,8 +69,8 @@ export class Type {
         } else if (ctx.atomicType()) {
             let primitiveType = ctx.atomicType()
             const typeName = primitiveType.getText();
-            if (typeName == Primitive.I64) {
-                return new Type(Primitive.I64);
+            if (typeName == Primitive.i32) {
+                return new Type(Primitive.i32);
             } else if (typeName == Primitive.BOOL) {
                 return new Type(Primitive.BOOL);
             } else {
@@ -441,7 +441,7 @@ export class RustEvaluatorVisitor
 
     private getExpressionType(expr: rp.ExpressionContext): Type {
         if (expr instanceof rp.IntContext) {
-            return new Type(Primitive.I64);
+            return new Type(Primitive.i32);
         } else if (expr instanceof rp.BoolContext) {
             return new Type(Primitive.BOOL);
         } else if (expr instanceof rp.LogicalNotOpContext) {
@@ -462,22 +462,22 @@ export class RustEvaluatorVisitor
             }
             return new Type(Primitive.BOOL);
         } else if (expr instanceof rp.UnaryOpContext) {
-            if (!this.getExpressionType(expr.expression()).equals(new Type(Primitive.I64))) {
+            if (!this.getExpressionType(expr.expression()).equals(new Type(Primitive.i32))) {
                 throw new Error(`Unary operator expects an integer expression`);
             }
-            return new Type(Primitive.I64);
+            return new Type(Primitive.i32);
         } else if (expr instanceof rp.AddSubOpContext ||
             expr instanceof rp.MulDivOpContext || expr instanceof rp.ComparatorOpContext
         ) {
             const leftType = this.getExpressionType(expr._left);
             const rightType = this.getExpressionType(expr._right);
             if (
-                !leftType.equals(new Type(Primitive.I64)) ||
-                !rightType.equals(new Type(Primitive.I64))
+                !leftType.equals(new Type(Primitive.i32)) ||
+                !rightType.equals(new Type(Primitive.i32))
             ) {
                 throw new Error(`Arithmetic operator expects integer expressions`);
             }
-            return new Type(Primitive.I64);
+            return new Type(Primitive.i32);
         } else if (expr instanceof rp.ParenExprContext) {
             return this.getExpressionType(expr.expression());
         } else if (expr instanceof rp.IdentifierContext) {
@@ -608,7 +608,7 @@ export class RustEvaluatorVisitor
             typeInfo = Type.fromTypeContext(ctx.type());
         } else {
             // TODO: Type inference
-            typeInfo = new Type(Primitive.I64);
+            typeInfo = new Type(Primitive.i32);
         }
 
         console.log(`[COMPILE] Declaring variable: ${varName}, mutable: ${isMutable}, type: ${typeInfo.toString()}`);
@@ -1245,7 +1245,7 @@ export class RustEvaluatorVisitor
         // Type check
         const leftType = this.getExpressionType(ctx._left)
         const rightType = this.getExpressionType(ctx._right)
-        if (!leftType.equals(new Type(Primitive.I64)) || !rightType.equals(new Type(Primitive.I64))) {
+        if (!leftType.equals(new Type(Primitive.i32)) || !rightType.equals(new Type(Primitive.i32))) {
             throw new Error(`Arithmetic operator expects integer expressions`);
         }
 
@@ -1270,7 +1270,7 @@ export class RustEvaluatorVisitor
         // Type check
         const leftType = this.getExpressionType(ctx._left)
         const rightType = this.getExpressionType(ctx._right)
-        if (!leftType.equals(new Type(Primitive.I64)) || !rightType.equals(new Type(Primitive.I64))) {
+        if (!leftType.equals(new Type(Primitive.i32)) || !rightType.equals(new Type(Primitive.i32))) {
             throw new Error(`Arithmetic operator expects integer expressions`);
         }
         // First visit the left operand
@@ -1293,7 +1293,7 @@ export class RustEvaluatorVisitor
     visitUnaryOp(ctx: rp.UnaryOpContext): number {
         // Type check
         const exprType = this.getExpressionType(ctx.expression());
-        if (!exprType.equals(new Type(Primitive.I64))) {
+        if (!exprType.equals(new Type(Primitive.i32))) {
             throw new Error(`Unary operator expects integer expressions`);
         }
 
@@ -1413,7 +1413,7 @@ export class RustEvaluatorVisitor
         // Type check
         const leftType = this.getExpressionType(ctx._left)
         const rightType = this.getExpressionType(ctx._right)
-        if (!leftType.equals(new Type(Primitive.I64)) || !rightType.equals(new Type(Primitive.I64))) {
+        if (!leftType.equals(new Type(Primitive.i32)) || !rightType.equals(new Type(Primitive.i32))) {
             throw new Error(`Comparison operator expects integer expressions`);
         }
 
@@ -1450,7 +1450,7 @@ export class RustEvaluatorVisitor
         // Type check
         const leftType = this.getExpressionType(ctx._left)
         const rightType = this.getExpressionType(ctx._right)
-        if (!leftType.equals(new Type(Primitive.I64)) || !rightType.equals(new Type(Primitive.I64))) {
+        if (!leftType.equals(new Type(Primitive.i32)) || !rightType.equals(new Type(Primitive.i32))) {
             throw new Error(`Equality operator expects integer expressions`);
         }
 

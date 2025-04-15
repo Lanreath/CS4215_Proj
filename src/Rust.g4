@@ -92,7 +92,7 @@ referenceType
     : '&' mutFlag='mut'? baseType=type
     ;
 
-atomicType: 'i64' | 'bool';
+atomicType: 'i32' | 'bool';
 
 breakStatement
     : 'break' ';'

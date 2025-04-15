@@ -73,7 +73,7 @@ export class RustParser extends antlr.Parser {
         null, "'return'", "';'", "'let'", "'mut'", "':'", "'='", "'fn'", 
         "'('", "')'", "'->'", "','", "'{'", "'}'", "'if'", "'else'", "'while'", 
         "'*'", "'-'", "'!'", "'/'", "'+'", "'<'", "'<='", "'>'", "'>='", 
-        "'=='", "'!='", "'&&'", "'||'", "'&'", "'i64'", "'bool'", "'break'"
+        "'=='", "'!='", "'&&'", "'||'", "'&'", "'i32'", "'bool'", "'break'"
     ];
 
     public static readonly symbolicNames = [
