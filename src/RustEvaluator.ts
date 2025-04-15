@@ -510,26 +510,6 @@ export class RustEvaluatorVisitor
             } else {
                 throw new Error(`Dereferencing non-reference type: ${baseType}`);
             }
-
-            // if (targetExpr instanceof rp.IdentifierContext) {
-            //     const refName = targetExpr.getText();
-            //     const refState = this.lookupVariable(refName);
-
-            //     if (!refState) {
-            //         throw new Error(`Variable ${refName} is not defined`);
-            //     }
-
-            //     // Check if it's a reference
-            //     const target = this.referenceMap.has(refName);
-            //     if (!target) {
-            //         throw new Error(`Reference ${refName} does not point to a valid variable`);
-            //     }
-            //     if (!(refState.typeInfo.baseType instanceof TypeInfo)) {
-            //         throw new Error(`Cannot dereference non-reference variable: ${refName}`);
-            //     }
-
-            //     return refState.typeInfo.baseType;
-            // }
         } else {
             throw new Error(`Unsupported expression type: ${expr.constructor.name}`);
         }
@@ -706,7 +686,8 @@ export class RustEvaluatorVisitor
 
             // Regular initialization (not a move or Copy type)
             this.visit(ctx.expression());
-            this.vm.pushInstruction(InstructionTag.STORE, varState.address);
+            const isBool = varState.typeInfo.baseType === Primitive.BOOL;
+            this.vm.pushInstruction(InstructionTag.STORE, varState.address, isBool);
         }
 
         return 0;
@@ -753,7 +734,7 @@ export class RustEvaluatorVisitor
 
                 // Load from source variable
                 this.vm.pushInstruction(InstructionTag.LOAD, sourceState.address);
-                this.vm.pushInstruction(InstructionTag.STORE, targetState.address);
+                                this.vm.pushInstruction(InstructionTag.STORE, targetState.address);
 
                 // Mark source as moved
                 sourceState.state = BorrowState.Moved;
@@ -765,7 +746,8 @@ export class RustEvaluatorVisitor
 
         // For non-variable expressions, evaluate normally
         this.visit(expr);
-        this.vm.pushInstruction(InstructionTag.STORE, targetState.address);
+        const isBool = targetState.typeInfo.baseType === Primitive.BOOL;
+        this.vm.pushInstruction(InstructionTag.STORE, targetState.address, isBool);
 
         return 0;
     }
@@ -830,11 +812,6 @@ export class RustEvaluatorVisitor
             if (!refState) {
                 throw new Error(`Variable ${refName} not found`);
             }
-
-            // if (!(refState.typeInfo.baseType instanceof Type)) {
-            //     console.log(refState);
-            //     throw new BorrowError(`${refName} is not a reference`);
-            // }
 
             // Get the target variable name from the reference map
             const target = this.referenceMap.has(refName);
@@ -904,7 +881,8 @@ export class RustEvaluatorVisitor
 
         // Push instruction to store the new value at the target's address
         this.vm.pushInstruction(InstructionTag.LOAD, targetState.address);
-        this.vm.pushInstruction(InstructionTag.PUT);
+        const isBool = valueType.baseType === Primitive.BOOL;
+        this.vm.pushInstruction(InstructionTag.PUT, undefined, isBool);
 
         return 0;
     }
@@ -1122,7 +1100,8 @@ export class RustEvaluatorVisitor
             this.referenceMap.set(paramName, null);
         }
         // Store the argument at the allocated address during the function call
-        this.vm.pushInstruction(InstructionTag.STORE, addr);
+        const isBool = typeInfo.baseType === Primitive.BOOL;
+        this.vm.pushInstruction(InstructionTag.STORE, addr, isBool);
 
         return typeInfo;
     }
@@ -1232,7 +1211,7 @@ export class RustEvaluatorVisitor
     visitInt(ctx: rp.IntContext): number {
         const value = parseInt(ctx.INT().getText());
         console.log(`[COMPILE] Loading constant: ${value}`);
-        this.vm.pushInstruction(InstructionTag.LDCN, value);
+        this.vm.pushInstruction(InstructionTag.LDCN, value, false);  // Pass isBool flag
         return 0;
     }
 
@@ -1255,8 +1234,9 @@ export class RustEvaluatorVisitor
         // Check borrowing rules
         this.checkReadAccess(name);
 
-        // Load the value
-        this.vm.pushInstruction(InstructionTag.LOAD, state.address);
+        // Load the value with type information
+        const isBool = state.typeInfo.baseType === Primitive.BOOL;
+        this.vm.pushInstruction(InstructionTag.LOAD, state.address, isBool);
 
         return 0;
     }
@@ -1338,7 +1318,7 @@ export class RustEvaluatorVisitor
         this.visit(ctx.expression());
 
         // Push the logical NOT instruction
-        this.vm.pushInstruction(InstructionTag.NOT);
+        this.vm.pushInstruction(InstructionTag.NOT, undefined, true);
         console.log(`[COMPILE] Logical NOT operation`);
 
         return 0;
@@ -1368,7 +1348,7 @@ export class RustEvaluatorVisitor
         this.visit(ctx._right);
 
         // Perform the AND operation
-        this.vm.pushInstruction(InstructionTag.AND);
+        this.vm.pushInstruction(InstructionTag.AND, undefined, true);
         this.vm.pushGoto(endLabel);
 
         // Short circuit: left was false, so result is false
@@ -1406,7 +1386,7 @@ export class RustEvaluatorVisitor
         this.visit(ctx._right);
 
         // Perform the OR operation
-        this.vm.pushInstruction(InstructionTag.OR);
+        this.vm.pushInstruction(InstructionTag.OR, undefined, true);
         this.vm.pushGoto(endLabel);
 
         // Short circuit: left was true, so result is true
@@ -1425,7 +1405,7 @@ export class RustEvaluatorVisitor
     visitBool(ctx: rp.BoolContext): number {
         const value = ctx.BOOL().getText() === "true" ? 1 : 0;
         console.log(`[COMPILE] Loading boolean constant: ${value === 1 ? 'true' : 'false'}`);
-        this.vm.pushInstruction(InstructionTag.LDCN, value);
+        this.vm.pushInstruction(InstructionTag.LDCN, value, true);  // Pass isBool flag
         return 0;
     }
 
@@ -1447,16 +1427,16 @@ export class RustEvaluatorVisitor
         // Push the appropriate instruction
         switch (op) {
             case ">":
-                this.vm.pushInstruction(InstructionTag.GT);
+                this.vm.pushInstruction(InstructionTag.GT, undefined, true);
                 break;
             case ">=":
-                this.vm.pushInstruction(InstructionTag.GE);
+                this.vm.pushInstruction(InstructionTag.GE, undefined, true);
                 break;
             case "<":
-                this.vm.pushInstruction(InstructionTag.LT);
+                this.vm.pushInstruction(InstructionTag.LT, undefined, true);
                 break;
             case "<=":
-                this.vm.pushInstruction(InstructionTag.LE);
+                this.vm.pushInstruction(InstructionTag.LE, undefined, true);
                 break;
             default:
                 throw new Error(`Unknown comparison operator: ${op}`);
@@ -1483,10 +1463,10 @@ export class RustEvaluatorVisitor
         // Push the appropriate instruction
         switch (op) {
             case "==":
-                this.vm.pushInstruction(InstructionTag.EQ);
+                this.vm.pushInstruction(InstructionTag.EQ, undefined, true);
                 break;
             case "!=":
-                this.vm.pushInstruction(InstructionTag.NE);
+                this.vm.pushInstruction(InstructionTag.NE, undefined, true);
                 break;
             default:
                 throw new Error(`Unknown comparison operator: ${op}`);
@@ -1566,7 +1546,8 @@ export class RustEvaluator extends BasicEvaluator {
                 console.log(`[EVALUATOR] Final expression is variable: ${varName}`);
                 const varState = visitor.lookupVariable(varName);
                 if (varState) {
-                    vm.pushInstruction(InstructionTag.LOAD, varState.address);
+                    const isBool = varState.typeInfo.baseType === Primitive.BOOL;
+                    vm.pushInstruction(InstructionTag.LOAD, varState.address, isBool);
                 }
             }
 

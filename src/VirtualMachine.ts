@@ -30,19 +30,12 @@ export enum InstructionTag {
 export class Instruction {
     public tag: InstructionTag;
     public value?: number;
-    public first?: number;
-    public second?: number;
+    public isBool?: boolean;
 
-    constructor(
-        tag: InstructionTag,
-        value?: number,
-        first?: number,
-        second?: number
-    ) {
+    constructor(tag: InstructionTag, value?: number, isBool: boolean = false) {
         this.tag = tag;
         this.value = value;
-        this.first = first;
-        this.second = second;
+        this.isBool = isBool;
     }
 
     public toString(): string {
@@ -62,6 +55,12 @@ export class VirtualMachine {
     private static readonly RT_BASE = 512
     private static readonly RS_BASE = 1024
 
+    private static readonly TYPE_INT = 1;
+    private static readonly TYPE_BOOL = 2;
+
+    private static readonly TYPE_OFFSET = 0;
+    private static readonly VALUE_OFFSET = 1;
+
     private ic: number = 0; // Instruction counter
     private instructions: Instruction[] = [];
     private pc: number = 0; // Program counter
@@ -77,12 +76,55 @@ export class VirtualMachine {
         this.view = new DataView(this.memory);
     }
 
-    private pushOperand(value: number): void {
-        const addr = VirtualMachine.OS_BASE + this.osPtr * 4;
+    private storeTyped(addr: number, value: number, type: number): void {
+        const heapAddr = VirtualMachine.RS_BASE + addr;
+        if (heapAddr < VirtualMachine.RS_BASE || heapAddr + 5 > this.memSize) {
+            throw new Error(`Invalid memory address for store: ${addr}`);
+        }
+
+        // Store type tag (1 byte)
+        this.view.setInt8(heapAddr + VirtualMachine.TYPE_OFFSET, type);
+
+        // Store value (1 or 4 bytes depending on type)
+        if (type === VirtualMachine.TYPE_BOOL) {
+            this.view.setInt8(heapAddr + VirtualMachine.VALUE_OFFSET, value ? 1 : 0);
+        } else {
+            this.view.setInt32(heapAddr + VirtualMachine.VALUE_OFFSET, value);
+        }
+    }
+
+    private loadTyped(addr: number): [number, number] {
+        const heapAddr = VirtualMachine.RS_BASE + addr;
+        if (heapAddr < VirtualMachine.RS_BASE || heapAddr + 5 > this.memSize) {
+            throw new Error(`Invalid memory address for load: ${addr}`);
+        }
+
+        // Load type tag
+        const type = this.view.getInt8(heapAddr + VirtualMachine.TYPE_OFFSET);
+
+        // Load value based on type
+        let value: number;
+        if (type === VirtualMachine.TYPE_BOOL) {
+            value = this.view.getInt8(heapAddr + VirtualMachine.VALUE_OFFSET);
+        } else {
+            value = this.view.getInt32(heapAddr + VirtualMachine.VALUE_OFFSET);
+        }
+
+        return [value, type];
+    }
+
+    private pushOperand(value: number, isBool: boolean = false): void {
+        const addr = VirtualMachine.OS_BASE + this.osPtr * (isBool ? 2 : 5);
         if (addr >= VirtualMachine.RT_BASE) {
             throw new Error("Operand stack overflow");
         }
-        this.view.setInt32(addr, value);
+        if (isBool) {
+            this.view.setInt8(addr + VirtualMachine.TYPE_OFFSET, VirtualMachine.TYPE_BOOL);
+            this.view.setInt8(addr + VirtualMachine.VALUE_OFFSET, value ? 1 : 0);
+        } else {
+            this.view.setInt8(addr + VirtualMachine.TYPE_OFFSET, VirtualMachine.TYPE_INT);
+            this.view.setInt32(addr + VirtualMachine.VALUE_OFFSET, value);
+        }
         this.osPtr++;
     }
 
@@ -91,9 +133,11 @@ export class VirtualMachine {
             throw new Error("Operand stack underflow");
         }
         this.osPtr--;
-        const addr = VirtualMachine.OS_BASE + this.osPtr * 4;
-        const value = this.view.getInt32(addr);
-        this.view.setInt32(addr, 0);
+        const addr = VirtualMachine.OS_BASE + this.osPtr * 5; // Use maximum size for alignment
+        const type = this.view.getInt8(addr + VirtualMachine.TYPE_OFFSET);
+        const value = type === VirtualMachine.TYPE_BOOL
+            ? this.view.getInt8(addr + VirtualMachine.VALUE_OFFSET)
+            : this.view.getInt32(addr + VirtualMachine.VALUE_OFFSET);
         return value;
     }
 
@@ -101,8 +145,12 @@ export class VirtualMachine {
         if (this.osPtr <= 0) {
             throw new Error("Operand stack underflow");
         }
-        const addr = VirtualMachine.OS_BASE + (this.osPtr - 1) * 4;
-        return this.view.getInt32(addr);
+        const addr = VirtualMachine.OS_BASE + (this.osPtr - 1) * 5; // Use maximum size for alignment
+        const type = this.view.getInt8(addr + VirtualMachine.TYPE_OFFSET);
+        const value = type === VirtualMachine.TYPE_BOOL
+            ? this.view.getInt8(addr + VirtualMachine.VALUE_OFFSET)
+            : this.view.getInt32(addr + VirtualMachine.VALUE_OFFSET);
+        return value;
     }
 
     private pushReturn(addr: number): void {
@@ -123,23 +171,12 @@ export class VirtualMachine {
     }
 
     private load(addr: number): number {
-        const heapAddr = VirtualMachine.RS_BASE + addr;
-        if (heapAddr < VirtualMachine.RS_BASE || heapAddr >= this.memSize) {
-            throw new Error(`Invalid memory address for load: ${addr}`);
-        }
-        const value = this.view.getInt32(heapAddr);
-        if (isNaN(value)) {
-            throw new Error(`Invalid value at address ${addr}`);
-        }
+        const [value, _] = this.loadTyped(addr);
         return value;
     }
 
-    private store(addr: number, value: number): void {
-        const heapAddr = VirtualMachine.RS_BASE + addr;
-        if (heapAddr < VirtualMachine.RS_BASE || heapAddr >= this.memSize) {
-            throw new Error(`Invalid memory address for store: ${addr}`);
-        }
-        this.view.setInt32(heapAddr, value);
+    private store(addr: number, value: number, isBool: boolean = false): void {
+        this.storeTyped(addr, value, isBool ? VirtualMachine.TYPE_BOOL : VirtualMachine.TYPE_INT);
     }
 
     private popTwoOperands(): [number, number] {
@@ -177,12 +214,11 @@ export class VirtualMachine {
         }
     }
 
-    public pushInstruction(tag: InstructionTag, value?: number): number {
+    public pushInstruction(tag: InstructionTag, value?: number, isBool: boolean = false): number {
         console.log(
-            `[VM] Pushing instruction: ${tag}${value !== undefined ? " " + value : ""
-            }`
+            `[VM] Pushing instruction: ${tag}${value !== undefined ? " " + value : ""} (${isBool ? "bool" : "int"})`
         );
-        const instr = new Instruction(tag, value);
+        const instr = new Instruction(tag, value, isBool);
         this.instructions[this.ic] = instr;
         return ++this.ic;
     }
@@ -283,12 +319,13 @@ export class VirtualMachine {
         this.view.setInt32(heapAddr, 0);
     }
 
-    public allocateVariable(): number {
+    public allocateVariable(isBool: boolean = false): number {
         const addr = this.rsPtr;
-        if (VirtualMachine.RS_BASE + addr >= this.memSize) {
+        const size = isBool ? 2 : 5; // 1 byte type + (1 or 4) bytes value
+        if (VirtualMachine.RS_BASE + addr + size > this.memSize) {
             throw new Error("Runtime stack overflow");
         }
-        this.rsPtr += 4; // Allocate 4 bytes for an integer
+        this.rsPtr += size;
         return addr;
     }
 
@@ -442,7 +479,7 @@ export class VirtualMachine {
                         console.log(
                             `[VM] STORE: Storing ${value} at address ${instr.value}`
                         );
-                        this.store(instr.value, value);
+                        this.store(instr.value, value, instr.isBool);
                         break;
                     }
                     case InstructionTag.FETCH: {
@@ -463,7 +500,7 @@ export class VirtualMachine {
                         const value = this.popOperand();
                         
                         // Store the value at that address
-                        this.store(addr, value);
+                        this.store(addr, value, instr.isBool);
                         console.log(`[VM] PUT: Stored ${value} at address ${addr}`);
                         break;
                     }
@@ -504,20 +541,23 @@ export class VirtualMachine {
                         break;
                     }
                     
-                    case InstructionTag.AND:
-                        a = this.popOperand();
-                        b = this.popOperand();
-                        this.pushOperand(a !== 0 && b !== 0 ? 1 : 0);
+                    case InstructionTag.AND: {
+                        const b = this.popOperand();
+                        const a = this.popOperand();
+                        this.pushOperand(a !== 0 && b !== 0 ? 1 : 0, true);
                         break;
-                    case InstructionTag.OR:
-                        a = this.popOperand();
-                        b = this.popOperand();
-                        this.pushOperand(a !== 0 || b !== 0 ? 1 : 0);
+                    }
+                    case InstructionTag.OR: {
+                        const b = this.popOperand();
+                        const a = this.popOperand();
+                        this.pushOperand(a !== 0 || b !== 0 ? 1 : 0, true);
                         break;
-                    case InstructionTag.NOT:
-                        a = this.popOperand();
-                        this.pushOperand(a === 0 ? 1 : 0);
+                    }
+                    case InstructionTag.NOT: {
+                        const a = this.popOperand();
+                        this.pushOperand(a === 0 ? 1 : 0, true);
                         break;
+                    }
                     case InstructionTag.DUP:
                         a = this.popOperand();
                         this.pushOperand(a);
