@@ -2,7 +2,7 @@
 
 ## starting point:
 Refer to Sam's repository: https://github.com/tsammeow/conductor-runner-example
-I have forked it and made some configuartion changes to make it work with ANTLR.
+I have forked it and made some configuration changes to make it work with ANTLR.
 
 ## define your grammar
 create a file (say, grammar/SimpleLang.g4) with something like:
@@ -128,6 +128,12 @@ export class SimpleLangEvaluator extends BasicEvaluator {
     }
 }
 ```
+
+## utilise the cli tool for testing
+```bash
+yarn start
+```
+This starts the program for running tests on the evaluator implemented
 
 ## update your entry point
 change src/index.ts to import your new evaluator:
