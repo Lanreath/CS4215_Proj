@@ -24,7 +24,7 @@ function debugLog(message: string): void {
     }
 }
 
-function evaluate(input: string): { result: number, error: string | null } {
+function evaluate(input: string): { result: number | boolean, error: string | null } {
     try {
         // Reset the VM state for each new evaluation
         vm.reset();
