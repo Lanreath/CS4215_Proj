@@ -39,6 +39,10 @@ class VariableState {
         this.address = address;
         this.typeInfo = typeInfo;
     }
+
+    shouldDrop(): boolean {
+        return this.borrowers.length === 0 && this.state !== BorrowState.Moved;
+    }
 }
 
 // Runtime type information
@@ -191,19 +195,20 @@ export class RustEvaluatorVisitor
         for (const name of currentScope.keys()) {
             console.log(`[DEBUG] Cleaning up variable: ${name}`);
 
-            // Handle references
-            if (this.referenceMap.has(name)) {
-                this.releaseBorrow(name);
-            }
-
             // Get the state
             const state = this.variableStates.get(name);
             if (state) {
-                // Free memory
-                this.vm.pushInstruction(InstructionTag.FREE, state.address);
-                // IMPORTANT: Remove from variable tracking
-                this.variableStates.delete(name);
-                console.log(`[DEBUG] Deleted variable: ${name}`);
+                // Handle references
+                if (this.referenceMap.has(name)) {
+                    this.releaseBorrow(name);
+                }
+                if (state.shouldDrop()) {
+                    console.log(`[DEBUG] Dropping variable ${name} as it has no borrowers`);
+                    this.variableStates.delete(name);
+                    this.vm.pushInstruction(InstructionTag.FREE, state.address);
+                } else {
+                    console.log(`[DEBUG] Not dropping ${name} as it has ${state.borrowers.length} borrowers`);
+                }
             }
         }
     }
@@ -734,7 +739,7 @@ export class RustEvaluatorVisitor
 
                 // Load from source variable
                 this.vm.pushInstruction(InstructionTag.LOAD, sourceState.address);
-                                this.vm.pushInstruction(InstructionTag.STORE, targetState.address);
+                this.vm.pushInstruction(InstructionTag.STORE, targetState.address);
 
                 // Mark source as moved
                 sourceState.state = BorrowState.Moved;

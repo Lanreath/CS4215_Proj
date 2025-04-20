@@ -316,7 +316,20 @@ export class VirtualMachine {
         if (heapAddr < VirtualMachine.RS_BASE || heapAddr >= this.memSize) {
             throw new Error(`Invalid memory address for free: ${addr}`);
         }
-        this.view.setInt32(heapAddr, 0);
+        // Check type tag
+        const type = this.view.getInt8(heapAddr + VirtualMachine.TYPE_OFFSET);
+        if (type !== VirtualMachine.TYPE_BOOL && type !== VirtualMachine.TYPE_INT) {
+            throw new Error(`Invalid type tag for free: ${type}`);
+        }
+        // Clear the memory
+        this.view.setInt8(heapAddr + VirtualMachine.TYPE_OFFSET, 0);
+        if (type === VirtualMachine.TYPE_BOOL) {
+            this.view.setInt8(heapAddr + VirtualMachine.VALUE_OFFSET, 0);
+        }
+        else {
+            this.view.setInt32(heapAddr + VirtualMachine.VALUE_OFFSET, 0);
+        }
+        console.log(`[VM] Freed memory at address ${addr}`);
     }
 
     public allocateVariable(isBool: boolean = false): number {
@@ -332,8 +345,6 @@ export class VirtualMachine {
     public run(): number {
         this.pc = 0;
         this.osPtr = 0; // Reset operand stack pointer
-        let a: number;
-        let b: number;
         try {
             while (this.pc < this.ic) {
                 const instr = this.instructions[this.pc++];
@@ -559,7 +570,7 @@ export class VirtualMachine {
                         break;
                     }
                     case InstructionTag.DUP:
-                        a = this.popOperand();
+                        const a = this.popOperand();
                         this.pushOperand(a);
                         this.pushOperand(a);
                         break;

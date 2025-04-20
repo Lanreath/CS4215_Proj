@@ -93,13 +93,6 @@ fn square(x: i32) -> i32 { x * x }
 apply(square, 5); // Output: 25
 
 ```
-fn apply_twice(f: fn(i32) -> i32, x: i32) -> i32 {
-    f(f(x))
-}
-
-fn square(x: i32) -> i32 { x * x }
-apply_twice(square, true);
-```
 let x : i32 = true;
 x;
 ```
