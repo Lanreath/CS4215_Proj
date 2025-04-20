@@ -113,6 +113,7 @@ class FunctionDefinition {
     paramList: rp.ParamListContext | null;
     paramTypes: Map<string, Type> = new Map();
     declaredReturnType: Type
+    hasReturned: boolean = false;
 
     constructor(
         label: number,
@@ -151,8 +152,7 @@ export class RustEvaluatorVisitor
     }
     public referenceMap: Map<string, string>; // Maps reference names to their target
     private functionDefinitions: Map<string, FunctionDefinition> = new Map();
-    private isReturning: boolean = false;
-    private currentFunctionReturnType: Type | null = null;
+    private currentFunction: FunctionDefinition | null = null;
     private loopEndLabels: string[] = [];
     public scopes: Map<string, any>[] = [new Map()]; // Stack of scopes
 
@@ -164,8 +164,6 @@ export class RustEvaluatorVisitor
         this.referenceMap = new Map<string, string>();
         this.functionDefinitions = new Map();
         this.scopes = [new Map()];
-        this.currentFunctionReturnType = null;
-        this.isReturning = false;
         this.loopEndLabels = [];
     }
 
@@ -430,6 +428,9 @@ export class RustEvaluatorVisitor
         const targetName = this.referenceMap.get(refName);
         if (targetName === undefined) return false;
 
+        // Check if the target is a reference parameter
+        if (targetName == null && this.currentFunction) return true;
+
         const targetState = this.lookupVariable(targetName);
         if (!targetState) return false;
 
@@ -561,10 +562,6 @@ export class RustEvaluatorVisitor
 
         // Reset function tracking
         this.functionDefinitions = new Map();
-        this.currentFunctionReturnType = null;
-
-        // Reset control flow flags
-        this.isReturning = false;
 
         // Reset reference tracking
         this.loopEndLabels = [];
@@ -866,19 +863,17 @@ export class RustEvaluatorVisitor
             throw new BorrowError(`Target of reference ${refName} no longer exists`);
         }
 
-        if (!this.currentFunctionReturnType) {
-            // Get the target variable name
-            const target = this.referenceMap.has(refName);
-            if (!target) {
-                throw new BorrowError(`${refName} does not point to a valid variable`);
-            }
+        // Get the target variable name
+        const target = this.referenceMap.has(refName);
+        if (!target) {
+            throw new BorrowError(`${refName} does not point to a valid variable`);
+        }
 
-            // Check if this is a mutable reference
-            if (!this.isMutableReference(refName)) {
-                throw new BorrowError(
-                    `Cannot assign through immutable reference ${refName}`
-                );
-            }
+        // Check if this is a mutable reference
+        if (!this.isMutableReference(refName)) {
+            throw new BorrowError(
+                `Cannot assign through immutable reference ${refName}`
+            );
         }
 
         // Evaluate the value expression
@@ -896,10 +891,7 @@ export class RustEvaluatorVisitor
     visitBlock(ctx: rp.BlockContext): number {
         console.log(`[COMPILE] Code block`);
 
-        // Enter a new variable scope if not in function body
-        if (this.currentFunctionReturnType === null) {
-            this.enterScope();
-        }
+        this.enterScope();
 
         // Compile all statements in the block
         const statements = ctx.statement() || [];
@@ -909,50 +901,45 @@ export class RustEvaluatorVisitor
 
         // Compile the optional final expression (for implicit returns)
         if (ctx.expression && ctx.expression()) {
-            this.visit(ctx.expression());
+            const expr = ctx.expression();
+            // this.visit(ctx.expression());
+            const type = this.getExpressionType(ctx.expression());
             // Check the type of the last expression if function block
-            if (this.currentFunctionReturnType) {
-                const type = this.getExpressionType(ctx.expression());
-                if (!type.equals(this.currentFunctionReturnType)) {
+            if (this.currentFunction) {
+                if (!type.equals(this.currentFunction.declaredReturnType)) {
                     throw new Error(
-                        `Function return type mismatch: expected ${this.currentFunctionReturnType}, got ${type}`
+                        `Function return type mismatch: expected ${this.currentFunction.declaredReturnType}, got ${type}`
                     )
-                } else {
-                    // Push the return value to the stack
-                    this.vm.pushInstruction(InstructionTag.RETURN);
-                    this.isReturning = true;
                 }
+                this.visit(expr);
+                // Push the return value to the stack
+                this.vm.pushInstruction(InstructionTag.RETURN);
+                this.currentFunction.hasReturned = true;
             }
 
         }
 
-        if (this.currentFunctionReturnType === null) {
-            // Exit the scope if not in a function body
-            this.exitScope();
-        }
-
+        this.exitScope();
         return 0;
     }
 
     // Visit a parse tree produced by RustParser#returnStatement
     visitReturnStatement(ctx: rp.ReturnStatementContext): number {
         // Check if we're in a function
-        if (this.currentFunctionReturnType === null) {
+        if (!this.currentFunction) {
             throw new Error("Return statement outside of function");
         }
 
-        let returnType: Type = new Type(Primitive.VOID);
 
         // If there's an expression, evaluate it
         if (ctx.expression()) {
-            this.visit(ctx.expression());
-            returnType = this.getExpressionType(ctx.expression());
-
-            if (!returnType.equals(this.currentFunctionReturnType)) {
+            const returnType = this.getExpressionType(ctx.expression());
+            if (!returnType.equals(this.currentFunction.declaredReturnType)) {
                 throw new Error(
-                    `Function return type mismatch: expected ${this.currentFunctionReturnType}, got ${returnType}`
+                    `Function return type mismatch: expected ${this.currentFunction.declaredReturnType}, got ${returnType}`
                 );
             }
+            this.visit(ctx.expression());
         } else {
             // For void returns, push a dummy value
             this.vm.pushInstruction(InstructionTag.LDCN, 0);
@@ -960,7 +947,7 @@ export class RustEvaluatorVisitor
 
         // Return to the caller
         this.vm.pushInstruction(InstructionTag.RETURN);
-        this.isReturning = true;
+        this.currentFunction.hasReturned = true;
 
         return 0;
     }
@@ -1021,6 +1008,9 @@ export class RustEvaluatorVisitor
 
         const funcName = ctx._name.text;
         const params = ctx.paramList();
+        const returnType = ctx._returnType
+            ? Type.fromTypeContext(ctx._returnType)
+            : new Type(Primitive.VOID);
 
         console.log(`Defining function: ${funcName}`);
 
@@ -1031,15 +1021,14 @@ export class RustEvaluatorVisitor
         const entryPoint = this.vm.getInstructionCounter() + 1; // +1 to skip over the initial GOTO
 
         // Add function to registry with its entry point
-        const fnDef = new FunctionDefinition(entryPoint, params, ctx._returnType ? Type.fromTypeContext(ctx._returnType) : new Type(Primitive.VOID));
+        const fnDef = new FunctionDefinition(entryPoint, params, returnType);
         this.functionDefinitions.set(funcName, fnDef);
 
         // Add GOTO to skip over the function body during normal execution
         this.vm.pushGoto(endOfFnLabel);
 
-        // Save the function return type
-        this.currentFunctionReturnType = fnDef.declaredReturnType;
-        this.isReturning = false;
+        // Set current function context
+        this.currentFunction = fnDef;
 
         // Enter a scope for the function
         this.enterScope();
@@ -1063,25 +1052,21 @@ export class RustEvaluatorVisitor
         this.visit(ctx._functionBody);
 
         // Ensure all paths have a return for non-void functions
-        if (!this.isReturning && !this.currentFunctionReturnType.equals(new Type(Primitive.VOID))) {
-            throw new Error(`Function ${funcName} must return a value of type ${this.currentFunctionReturnType}`);
+        if (!fnDef.hasReturned && !returnType.equals(new Type(Primitive.VOID))) {
+            throw new Error(`Function ${funcName} must return a value of type ${returnType}`);
         }
 
         // Add a default return for void functions or as a safety
-        if (!this.isReturning) {
+        if (!fnDef.hasReturned) {
             this.vm.pushInstruction(InstructionTag.LDCN, 0); // Default return value
             this.vm.pushInstruction(InstructionTag.RETURN);
         }
 
         // Clean up the function's scope
         this.exitScope();
-
+        this.currentFunction = null;
         // Add the end label for the function
         this.vm.addLabel(endOfFnLabel);
-
-        // Reset state for the next declarations
-        this.currentFunctionReturnType = null;
-        this.isReturning = false;
 
         return 0;
     }
@@ -1098,7 +1083,7 @@ export class RustEvaluatorVisitor
         const addr = this.vm.allocateVariable();
 
         // Create a variable state with the proper type info
-        const varState = new VariableState(false, addr, typeInfo);
+        const varState = new VariableState(typeInfo.isMutable, addr, typeInfo);
         this.variableStates.set(paramName, varState);
         this.currentScope().set(paramName, true);
         if (typeInfo.baseType instanceof Type) {
