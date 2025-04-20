@@ -141,18 +141,6 @@ export class VirtualMachine {
         return value;
     }
 
-    private peekOperand(): number {
-        if (this.osPtr <= 0) {
-            throw new Error("Operand stack underflow");
-        }
-        const addr = VirtualMachine.OS_BASE + (this.osPtr - 1) * 5; // Use maximum size for alignment
-        const type = this.view.getInt8(addr + VirtualMachine.TYPE_OFFSET);
-        const value = type === VirtualMachine.TYPE_BOOL
-            ? this.view.getInt8(addr + VirtualMachine.VALUE_OFFSET)
-            : this.view.getInt32(addr + VirtualMachine.VALUE_OFFSET);
-        return value;
-    }
-
     private pushReturn(addr: number): void {
         if (this.returnStack.length >= 100) {
             throw new Error("Call stack overflow");
@@ -342,7 +330,7 @@ export class VirtualMachine {
         return addr;
     }
 
-    public run(): number {
+    public run(): number | boolean {
         this.pc = 0;
         this.osPtr = 0; // Reset operand stack pointer
         try {

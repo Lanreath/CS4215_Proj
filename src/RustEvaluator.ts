@@ -522,7 +522,7 @@ export class RustEvaluatorVisitor
     }
 
     // Virtual machine interaction
-    public runVM(): number {
+    public runVM(): number | boolean {
         try {
             const result = this.vm.run();
             return result;
@@ -1525,7 +1525,6 @@ export class RustEvaluator extends BasicEvaluator {
 
             // COMPILATION PHASE: Generate VM instructions
             visitor.visit(tree);
-            vm.pushInstruction(InstructionTag.DONE);
 
             // Check for a final standalone variable reference
             const lines = chunk.split('\n');
@@ -1541,6 +1540,7 @@ export class RustEvaluator extends BasicEvaluator {
                 }
             }
 
+            vm.pushInstruction(InstructionTag.DONE);
             // Print instructions for debugging
             vm.printInstructions();
 
